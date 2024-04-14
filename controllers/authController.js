@@ -5,6 +5,7 @@ const Joi = require('joi');
 const { sanitizeInput } = require('../utils')
 
 async function login(req, res) {
+  console.log(process.env.MONGODB_URI)
   const loginSchema = Joi.object({
     email: Usuario.joiSchema.extract('email'),
     senha: Usuario.joiSchema.extract('senha'),
