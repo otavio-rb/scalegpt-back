@@ -1,0 +1,50 @@
+service: scalegpt-back
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: dev
+  region: us-east-1
+  environment:
+    MONGODB_URI: 
+    REFRESH_TOKEN: 
+    ACCESS_TOKEN: 
+    CLIENT_ID: 
+    SECRET_KEY: 
+    CORP_ID: 
+    JWT_SECRET: 
+
+plugins:
+  - serverless-offline
+  - serverless-dotenv-plugin
+  # - serverless-openapi-documentation
+  # - serverless-aws-documentation
+  # - serverless-webpack
+package:
+  individually: true
+  exclude:
+    - test/**
+functions:
+  app:
+    handler: index.handler
+    timeout: 30 #seconds
+    events:
+      - http:
+          path: /
+          method: ANY
+      - http:
+          path: /{proxy+}
+          method: ANY
+custom:
+  # webpack:
+  #     webpackConfig: ./webpack.config.js
+  #     includeModules: true
+  dotenv:
+    path: ./.env
+  serverless-offline:
+    httpPort: 3000
+  # documentation:
+  #   version: '1.0.0'
+  #   title: 'API Serverless scalegpt-back'
+  #   description: 'Esta é a documentação API do meu projeto Serverless.'
+  #   models: ['models/*.js'] 

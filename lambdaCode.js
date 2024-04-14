@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const Automacao = require('./models/Automacao');
 require('dotenv').config();
 
-let accessToken = '';
+let accessToken = process.env.ACCESS_TOKEN;
 const refreshToken = process.env.REFRESH_TOKEN;
 const clientId = process.env.CLIENT_ID;
 const secretKey = process.env.SECRET_KEY;

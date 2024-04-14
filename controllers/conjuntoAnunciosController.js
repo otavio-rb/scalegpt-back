@@ -3,7 +3,7 @@ const moment = require('moment');
 const Usuario = require('../models/Usuario');
 require('dotenv').config();
 
-let accessToken = '';
+let accessToken = process.env.ACCESS_TOKEN;
 const refreshToken = process.env.REFRESH_TOKEN;
 const clientId = process.env.CLIENT_ID;
 const secretKey = process.env.SECRET_KEY;
@@ -189,20 +189,14 @@ async function atualizarStatusConjuntoAnuncioPorConta(accountId, unitId, openSta
 
 async function atualizarAccessToken() {
   try {
-    const response = await axios.post(
-      'https://developers.kwai.com/oauth/token',
-      {
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-        client_id: clientId,
-        client_secret: secretKey,
-      }
+    const response = await axios.get(
+      `https://developers.kwai.com/oauth/token?grant_type=refresh_token&refresh_token=${refreshToken}&client_id=${clientId}&client_secret=${secretKey}`,
     );
-
-    if (response.data.status === 200) {
+    
+    if (response.data) {
       accessToken = response.data.access_token;
     } else {
-      throw new Error(`Erro ao atualizar o token de acesso: ${response.data.message}`);
+      throw new Error(`Erro ao atualizar o token de acesso`);
     }
   } catch (error) {
     console.error(error);
