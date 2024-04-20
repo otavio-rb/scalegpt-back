@@ -1,6 +1,6 @@
 const axios = require('axios');
-const moment = require('moment');
 const Usuario = require('../models/Usuario');
+const { updateCreativeStatusSchema } = require('../validators/validationSchemas');
 require('dotenv').config();
 
 let accessToken = process.env.ACCESS_TOKEN;
@@ -85,6 +85,8 @@ async function deletarAnuncio(req, res) {
     const userId = req.user._id;
     const usuario = await Usuario.findById(userId);
     const contasVinculadas = usuario.contasVinculadas;
+    console.log("contasVinculadas", contasVinculadas)
+    console.log("length", contasVinculadas.length)
 
     const deletarPromises = contasVinculadas.map(async (contaId) => {
       await deletarAnuncioPorConta(contaId, creativeId);
@@ -104,7 +106,8 @@ async function deletarAnuncioPorConta(accountId, creativeId) {
     accountId: accountId,
     creativeIdList: [parseInt(creativeId)],
   };
-
+  console.log("params", params)
+  
   try {
     const response = await axios.post(
       'https://developers.kwai.com/rest/n/mapi/creative/dspCreativeDeletePerformance',
@@ -133,8 +136,13 @@ async function deletarAnuncioPorConta(accountId, creativeId) {
   }
 }
 
-async function atualizarStatusAnuncio(req, res) {
+async function atualizarStatusAnuncio(req, res, next) {
   try {
+    const { error } = updateCreativeStatusSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
     const { openStatus, creativeId } = req.body;
     const userId = req.user._id;
     const usuario = await Usuario.findById(userId);
@@ -148,8 +156,8 @@ async function atualizarStatusAnuncio(req, res) {
 
     res.json({ message: 'Status do anúncio atualizado com sucesso.' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Erro ao atualizar o status do anúncio.' });
+    console.error('Erro ao atualizar status do anúncio:', error);
+    next(error);
   }
 }
 
@@ -171,20 +179,18 @@ async function atualizarStatusAnuncioPorConta(accountId, creativeId, openStatus)
         },
       }
     );
-
+    
     if (response.data.status === 200) {
       return;
+    } else if (response.data.status === 401) {
+      await atualizarAccessToken();
+      return atualizarStatusAnuncioPorConta(accountId, creativeId, openStatus);
     } else {
-      if (response.data.status === 401) {
-        await atualizarAccessToken();
-        return atualizarStatusAnuncioPorConta(accountId, creativeId, openStatus);
-      } else {
-        throw new Error(`Erro ao atualizar status do anúncio da conta Kwai Ads: ${response.data.message}`);
-      }
+      throw new Error(`Erro ao atualizar status do anúncio da conta Kwai Ads: ${JSON.stringify(response.data)}`);
     }
   } catch (error) {
-    console.error(error);
-    throw new Error('Erro ao atualizar status do anúncio da conta Kwai Ads.');
+    console.error('Erro ao chamar API Kwai:', error);
+    throw error; 
   }
 }
 

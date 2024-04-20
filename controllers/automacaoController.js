@@ -2,38 +2,58 @@ const Automacao = require('../models/Automacao');
 const Usuario = require('../models/Usuario');
 const Joi = require('joi');
 const logger = require('../logger');
+const mongoose = require('mongoose');
 
 async function listarAutomacoes(req, res) {
   try {
     const userId = req.user._id;
-    const automacoes = await Automacao.find({ usuario: userId }).populate('conta');
+    const usuario = await Usuario.findById(userId);
+    if (!usuario) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    const contasVinculadas = usuario.contasVinculadas;
+    if (!contasVinculadas || contasVinculadas.length === 0) {
+      return res.status(404).json({ message: 'Não há contas vinculadas para este usuário.' });
+    }
+
+    const automacoes = await Automacao.find({
+      conta: { $in: contasVinculadas }
+    }); 
+
+    console.log('automacoes', automacoes)
 
     res.json(automacoes);
   } catch (error) {
     logger.error('Erro ao listar automações', { error });
-    res.status(500).json({ error: 'Erro ao listar automações' });
+    res.status(400).json({ error: error });
   }
 }
 
 async function deletarAutomacao(req, res) {
+  const { id } = req.params;
+  const userId = req.user._id;
+
+  // Verifica se o ID é um ObjectId válido
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(404).json({ error: 'ID inválido' });
+  }
+
   try {
-    const { id } = req.params;
-    const userId = req.user._id;
-
-    const automacao = await Automacao.findOneAndDelete({ _id: id, usuario: userId });
-
+    const automacao = await Automacao.findOne({ _id: id, usuario: userId });
     if (!automacao) {
       return res.status(404).json({ error: 'Automação não encontrada' });
     }
 
+    await Automacao.deleteOne({ _id: id });
     res.json({ message: 'Automação deletada com sucesso' });
   } catch (error) {
-    logger.error('Erro ao deletar automação', { error });
+    console.log('Erro ao deletar automação', { error });
     res.status(500).json({ error: 'Erro ao deletar automação' });
   }
 }
 
-async function criarAutomacao(req, res) {
+async function criarAutomacao(req, res, next) {
   try {
     const { error } = Automacao.joiSchema.validate(req.body);
     if (error) {
@@ -41,17 +61,17 @@ async function criarAutomacao(req, res) {
     }
 
     const userId = req.user._id;
-    const { titulo, conta, campanha, evento, condicao, valor, acao } = req.body;
+    const { titulo, conta, campanhaId, evento, condicao, valor, acao } = req.body;
 
     const usuario = await Usuario.findById(userId);
     if (!usuario.contasVinculadas.includes(conta)) {
       return res.status(400).json({ error: 'Conta não vinculada ao usuário' });
     }
-
+    
     const automacao = new Automacao({
       titulo,
       conta,
-      campanha,
+      campanhaId,
       evento,
       condicao,
       valor,
@@ -63,8 +83,8 @@ async function criarAutomacao(req, res) {
 
     res.status(201).json(automacao);
   } catch (error) {
-    logger.error('Erro ao criar automação', { error });
-    res.status(500).json({ error: 'Erro ao criar automação' });
+    console.log("Aquiiiii", error)
+    next(error);
   }
 }
 

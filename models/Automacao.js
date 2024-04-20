@@ -9,7 +9,7 @@ const automacaoSchema = new mongoose.Schema({
     maxlength: 255,
   },
   conta: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: Number,
     ref: 'ContaKwaiAds',
     required: true,
   },
@@ -47,6 +47,12 @@ const automacaoSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  usuario: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Usuario', 
+    required: true
+  },
+  
 });
 
 automacaoSchema.statics.joiSchema = Joi.object({
@@ -57,9 +63,10 @@ automacaoSchema.statics.joiSchema = Joi.object({
   }),
   conta: Joi.string().required().messages({
     'string.empty': 'A conta Kwai Ads é obrigatória.',
+    'string.pattern.base': 'A conta deve ser um ObjectId válido.'
   }),
-  campanha: Joi.string().required().messages({
-    'string.empty': 'A campanha é obrigatória.',
+  campanhaId: Joi.number().required().messages({
+    'number.base': 'O id da campanha é obrigatório',
   }),
   evento: Joi.string().required().messages({
     'string.empty': 'O evento é obrigatório.',

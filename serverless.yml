@@ -6,13 +6,13 @@ provider:
   stage: dev
   region: us-east-1
   environment:
-    MONGODB_URI: 
-    REFRESH_TOKEN: 
-    ACCESS_TOKEN: 
-    CLIENT_ID: 
-    SECRET_KEY: 
-    CORP_ID: 
-    JWT_SECRET: 
+    MONGODB_URI: mongodb://root:example@tcp://0.tcp.sa.ngrok.io:16694/test?authSource=admin
+    REFRESH_TOKEN: 18339d93-49f7-4326-a498-70f35f2e0695
+    ACCESS_TOKEN: 7e9ff4c4-954e-4a03-931c-5de8c8b22977
+    CLIENT_ID: tmM2YXmM
+    SECRET_KEY: 11f8a63f2ad33b98dbd95d42d4fb70fe8f3d37f1
+    CORP_ID: 1005
+    JWT_SECRET: 2139128312938123
 
 plugins:
   - serverless-offline

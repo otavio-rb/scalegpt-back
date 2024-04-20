@@ -1,12 +1,13 @@
 const axios = require('axios');
 const Usuario = require('../models/Usuario');
 require('dotenv').config();
+const { updateCampaignStatusSchema } = require('../validators/validationSchemas');
+
 
 let accessToken = process.env.ACCESS_TOKEN;
 const refreshToken = process.env.REFRESH_TOKEN;
 const clientId = process.env.CLIENT_ID;
 const secretKey = process.env.SECRET_KEY;
-const corpId = process.env.CORP_ID;
 
 async function obterCampanhas(req, res) {
   try {
@@ -22,16 +23,15 @@ async function obterCampanhas(req, res) {
       })
     );
 
-    const campanhasFlat = campanhas.flat();
-    const totalCampanhas = campanhasFlat.length;
-    
+    const campanhasFlat = campanhas.flat();    
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
     const campanhasPaginadas = campanhasFlat.slice(startIndex, endIndex);
+    console.log(campanhasPaginadas[0])
 
     res.json({
-      total: totalCampanhas,
-      campanhas: campanhasPaginadas,
+      total: campanhasPaginadas[0].total,
+      campanhas: campanhasPaginadas[0].data,
     });
   } catch (error) {
     console.error(error);
@@ -49,6 +49,8 @@ async function obterCampanhasPorConta(accountId, status, search, page, limit) {
     pageSize: limit,
   };
 
+  console.log(params);
+
   try {
     const response = await axios.post(
       'https://developers.kwai.com/rest/n/mapi/campaign/dspCampaignPageQueryPerformance',
@@ -61,7 +63,7 @@ async function obterCampanhasPorConta(accountId, status, search, page, limit) {
       }
     );
     if (response.data.status === 200) {
-      const campanhas = response.data.data.data;
+      const campanhas = response.data.data;
       return campanhas;
     } else {
       if (response.data.status === 401) {
@@ -131,23 +133,27 @@ async function deletarCampanhaPorConta(accountId, campaignId) {
   }
 }
 
-async function atualizarStatusCampanha(req, res) {
+async function atualizarStatusCampanha(req, res, next) {
   try {
+    const { error } = updateCampaignStatusSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
     const { openStatus, campaignId } = req.body;
     const userId = req.user._id;
     const usuario = await Usuario.findById(userId);
     const contasVinculadas = usuario.contasVinculadas;
 
-    const atualizarStatusPromises = contasVinculadas.map(async (contaId) => {
-      await atualizarStatusCampanhaPorConta(contaId, campaignId, openStatus);
+    const atualizarStatusPromises = contasVinculadas.map(contaId => {
+      return atualizarStatusCampanhaPorConta(contaId, campaignId, openStatus);
     });
 
     await Promise.all(atualizarStatusPromises);
 
     res.json({ message: 'Status da campanha atualizado com sucesso.' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Erro ao atualizar o status da campanha.' });
+    next(error);
   }
 }
 
@@ -157,6 +163,7 @@ async function atualizarStatusCampanhaPorConta(accountId, campaignId, openStatus
     campaignIdList: [parseInt(campaignId)],
     openStatus: openStatus,
   };
+  console.log(params)
 
   try {
     const response = await axios.post(
@@ -177,12 +184,11 @@ async function atualizarStatusCampanhaPorConta(accountId, campaignId, openStatus
         await atualizarAccessToken();
         return atualizarStatusCampanhaPorConta(accountId, campaignId, openStatus);
       } else {
-        throw new Error(`Erro ao atualizar status da campanha da conta Kwai Ads: ${response.data.message}`);
+        throw response.data.message;
       }
     }
   } catch (error) {
-    console.error(error);
-    throw new Error('Erro ao atualizar status da campanha da conta Kwai Ads.');
+    throw new Error(error);
   }
 }
 

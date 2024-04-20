@@ -132,15 +132,15 @@ async function deletarConjuntoAnuncioPorConta(accountId, unitId) {
   }
 }
 
-async function atualizarStatusConjuntoAnuncio(req, res) {
+async function atualizarStatusConjuntoAnuncio(req, res, next) {
   try {
-    const { openStatus, unitId } = req.body;
+    const { openStatus, unitIdList } = req.body;
     const userId = req.user._id;
     const usuario = await Usuario.findById(userId);
     const contasVinculadas = usuario.contasVinculadas;
 
     const atualizarStatusPromises = contasVinculadas.map(async (contaId) => {
-      await atualizarStatusConjuntoAnuncioPorConta(contaId, unitId, openStatus);
+      await atualizarStatusConjuntoAnuncioPorConta(contaId, unitIdList, openStatus);
     });
 
     await Promise.all(atualizarStatusPromises);
@@ -148,14 +148,14 @@ async function atualizarStatusConjuntoAnuncio(req, res) {
     res.json({ message: 'Status do conjunto de anúncio atualizado com sucesso.' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Erro ao atualizar o status do conjunto de anúncio.' });
+    next(error)
   }
 }
 
-async function atualizarStatusConjuntoAnuncioPorConta(accountId, unitId, openStatus) {
+async function atualizarStatusConjuntoAnuncioPorConta(accountId, unitIdList, openStatus) {
   const params = {
     accountId: accountId,
-    unitIdList: [parseInt(unitId)],
+    unitIdList: unitIdList,
     openStatus: openStatus,
   };
 
@@ -176,14 +176,14 @@ async function atualizarStatusConjuntoAnuncioPorConta(accountId, unitId, openSta
     } else {
       if (response.data.status === 401) {
         await atualizarAccessToken();
-        return atualizarStatusConjuntoAnuncioPorConta(accountId, unitId, openStatus);
+        return atualizarStatusConjuntoAnuncioPorConta(accountId, unitIdList, openStatus);
       } else {
         throw new Error(`Erro ao atualizar status do conjunto de anúncio da conta Kwai Ads: ${response.data.message}`);
       }
     }
   } catch (error) {
     console.error(error);
-    throw new Error('Erro ao atualizar status do conjunto de anúncio da conta Kwai Ads.');
+    throw error;
   }
 }
 
