@@ -252,7 +252,12 @@ async function duplicarCampanhaPorConta(req, res, next) {
     if (response.data.status === 200) {
       res.json({ message: 'Campanha duplicada com sucesso.', data: response.data });
     } else {
-      throw new Error(`Erro ao duplicar campanha: ${response.data.message}`);
+      if (response.data.status === 401) {
+        await atualizarAccessToken();
+        return duplicarCampanhaPorConta(req, res, next);
+      } else {
+        throw new Error(`Erro ao duplicar campanha: ${response.data.message}`);
+      }
     }
   } catch (error) {
     console.error(error);
