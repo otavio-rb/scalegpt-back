@@ -2,7 +2,7 @@ const axios = require('axios');
 const Usuario = require('../models/Usuario');
 require('dotenv').config();
 const { updateCampaignStatusSchema } = require('../validators/validationSchemas');
-
+const Campanha = require('../models/Campanha'); 
 
 let accessToken = process.env.ACCESS_TOKEN;
 const refreshToken = process.env.REFRESH_TOKEN;
@@ -23,7 +23,7 @@ async function obterCampanhas(req, res) {
       })
     );
 
-    const campanhasFlat = campanhas.flat();    
+    const campanhasFlat = campanhas.flat();
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
     const campanhasPaginadas = campanhasFlat.slice(startIndex, endIndex);
@@ -50,7 +50,7 @@ async function obterCampanhasPorConta(accountId, status, search, page, limit) {
   };
 
   console.log(params);
-
+  
   try {
     const response = await axios.post(
       'https://developers.kwai.com/rest/n/mapi/campaign/dspCampaignPageQueryPerformance',
@@ -192,12 +192,80 @@ async function atualizarStatusCampanhaPorConta(accountId, campaignId, openStatus
   }
 }
 
+async function duplicarCampanhaPorConta(req, res, next) {
+  try {
+    const {
+      accountId,
+      adCategory,
+      campaignType,
+      marketingType,
+      deliveryStrategy,
+      budgetType,
+      dayBudget,
+      budgetSchedule,
+      campaignName
+    } = req.body;
+
+    // Cria um objeto com os dados recebidos para validação
+    const novaCampanhaData = {
+      accountId,
+      adCategory,
+      campaignType,
+      marketingType,
+      deliveryStrategy,
+      budgetType,
+      dayBudget,
+      budgetSchedule,
+      campaignName
+    };
+
+    // Validar os dados usando o esquema Joi do modelo Campanha
+    const { error } = Campanha.joiSchema.validate(novaCampanhaData);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+    console.log(novaCampanhaData)
+    const novaCampanha = {
+      accountId: accountId,
+      campaignAddModelList: [
+        {
+          adCategory: adCategory,
+          campaignType: campaignType,
+          marketingType: marketingType,
+          deliveryStrategy: deliveryStrategy,
+          budgetType: budgetType,
+          dayBudget: dayBudget,
+          budgetSchedule: budgetSchedule,
+          campaignName: campaignName
+        }
+      ],
+    };
+
+    // Enviar requisição para criar a nova campanha
+    const response = await axios.post('https://developers.kwai.com/rest/n/mapi/campaign/dspCampaignAddPerformance', novaCampanha, {
+      headers: {
+        'Access-Token': accessToken,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.data.status === 200) {
+      res.json({ message: 'Campanha duplicada com sucesso.', data: response.data });
+    } else {
+      throw new Error(`Erro ao duplicar campanha: ${response.data.message}`);
+    }
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+}
+
 async function atualizarAccessToken() {
   try {
     const response = await axios.get(
       `https://developers.kwai.com/oauth/token?grant_type=refresh_token&refresh_token=${refreshToken}&client_id=${clientId}&client_secret=${secretKey}`,
     );
-    
+
     if (response.data) {
       accessToken = response.data.access_token;
     } else {
@@ -213,4 +281,5 @@ module.exports = {
   obterCampanhas,
   deletarCampanha,
   atualizarStatusCampanha,
+  duplicarCampanhaPorConta
 };

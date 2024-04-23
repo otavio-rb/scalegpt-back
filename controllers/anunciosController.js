@@ -107,7 +107,7 @@ async function deletarAnuncioPorConta(accountId, creativeId) {
     creativeIdList: [parseInt(creativeId)],
   };
   console.log("params", params)
-  
+
   try {
     const response = await axios.post(
       'https://developers.kwai.com/rest/n/mapi/creative/dspCreativeDeletePerformance',
@@ -179,7 +179,7 @@ async function atualizarStatusAnuncioPorConta(accountId, creativeId, openStatus)
         },
       }
     );
-    
+
     if (response.data.status === 200) {
       return;
     } else if (response.data.status === 401) {
@@ -190,7 +190,38 @@ async function atualizarStatusAnuncioPorConta(accountId, creativeId, openStatus)
     }
   } catch (error) {
     console.error('Erro ao chamar API Kwai:', error);
-    throw error; 
+    throw error;
+  }
+}
+
+async function duplicarAnuncioPorConta(req, res, next) {
+  try {
+    const dadosAnuncio = req.body;
+
+    const { error } = anuncioSchema.validate(dadosAnuncio);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const response = await axios.post(
+      'https://developers.kwai.com/rest/n/mapi/creative/dspCreativeAddPerformance',
+      dadosAnuncio,
+      {
+        headers: {
+          'Access-Token': process.env.ACCESS_TOKEN,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (response.data.status === 200) {
+      res.json({ message: 'Anúncio duplicado com sucesso.', data: response.data });
+    } else {
+      throw new Error(`Erro ao duplicar anúncio: ${response.data.message}`);
+    }
+  } catch (error) {
+    console.error(error);
+    next(error);
   }
 }
 
@@ -199,7 +230,7 @@ async function atualizarAccessToken() {
     const response = await axios.get(
       `https://developers.kwai.com/oauth/token?grant_type=refresh_token&refresh_token=${refreshToken}&client_id=${clientId}&client_secret=${secretKey}`,
     );
-    
+
     if (response.data) {
       accessToken = response.data.access_token;
     } else {
@@ -215,4 +246,5 @@ module.exports = {
   obterAnuncios,
   deletarAnuncio,
   atualizarStatusAnuncio,
+  duplicarAnuncioPorConta
 };

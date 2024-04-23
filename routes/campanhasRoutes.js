@@ -6,6 +6,8 @@ const authMiddleware = require('../authMiddleware');
 router.patch('/', authMiddleware, campanhasController.obterCampanhas);
 router.delete('/', authMiddleware, campanhasController.deletarCampanha);
 router.patch('/status', authMiddleware, campanhasController.atualizarStatusCampanha);
+router.post('/duplicate', authMiddleware, campanhasController.duplicarCampanhaPorConta);
+
 
 module.exports = router;
 

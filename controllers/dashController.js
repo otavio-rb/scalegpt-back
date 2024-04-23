@@ -110,6 +110,7 @@ async function obterTotalGastoPorData(accountId, data) {
         accountId: accountId,
         corpId: corpId,
     };
+    console.log(params)
   
     try {
       const response = await axios.post(
