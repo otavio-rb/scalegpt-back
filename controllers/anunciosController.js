@@ -10,49 +10,41 @@ const secretKey = process.env.SECRET_KEY;
 const corpId = process.env.CORP_ID;
 
 async function obterAnuncios(req, res) {
+  const userId = req.user._id;
+  const { contaId, granularity, dataBeginTime, dataEndTime, timeZoneIana, pageNo, pageSize } = req.body;
+  
+  const usuario = await Usuario.findById(userId);
+  if (!usuario.contasVinculadas || usuario.contasVinculadas.length === 0) {
+    return res.status(400).json({ error: 'Usuário não possui contas vinculadas' });
+  }
+  
+  if (!usuario.contasVinculadas.includes(contaId)) {
+    return res.status(403).json({ error: 'Conta não vinculada ao usuário' });
+  }
+
   try {
-    const { status, search, page = 1, limit = 10 } = req.body;
-    const userId = req.user._id;
-    const usuario = await Usuario.findById(userId);
-    const contasVinculadas = usuario.contasVinculadas;
-
-    const anuncios = await Promise.all(
-      contasVinculadas.map(async (contaId) => {
-        const anunciosPorConta = await obterAnunciosPorConta(contaId, status, search, page, limit);
-        return anunciosPorConta;
-      })
-    );
-
-    const anunciosFlat = anuncios.flat();
-    const totalAnuncios = anunciosFlat.length;
-
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
-    const anunciosPaginados = anunciosFlat.slice(startIndex, endIndex);
-
-    res.json({
-      total: totalAnuncios,
-      anuncios: anunciosPaginados,
-    });
+    const response = await obterAnunciosPorData(contaId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize);
+    res.json(response);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Erro ao obter os anúncios.' });
+    res.status(500).json({ error: error.message });
   }
 }
 
-async function obterAnunciosPorConta(accountId, status, search, page, limit) {
+async function obterAnunciosPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize) {
   const params = {
-    accountId: accountId,
-    adCategory: 1,
-    status: status ? parseInt(status) : null,
-    creativeIdList: search ? [parseInt(search)] : null,
-    pageNo: page,
-    pageSize: limit,
+    granularity,
+    dataBeginTime,
+    dataEndTime,
+    timeZoneIana,
+    accountId,
+    corpId,
+    pageNo, 
+    pageSize 
   };
 
   try {
     const response = await axios.post(
-      'https://developers.kwai.com/rest/n/mapi/creative/dspCreativePageQueryPerformance',
+      'https://developers.kwai.com/rest/n/mapi/report/dspCreativeEffectQuery',
       params,
       {
         headers: {
@@ -63,19 +55,19 @@ async function obterAnunciosPorConta(accountId, status, search, page, limit) {
     );
 
     if (response.data.status === 200) {
-      const anuncios = response.data.data.data;
-      return anuncios;
+      const totalGasto = response?.data?.data;
+      return totalGasto || 0;
     } else {
       if (response.data.status === 401) {
-        await atualizarAccessToken();
-        return obterAnunciosPorConta(accountId, status, search, page, limit);
+          await atualizarAccessToken();
+          return obterAnunciosPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana);
       } else {
-        throw new Error(`Erro ao obter anúncios da conta Kwai Ads: ${response.data.message}`);
+        throw new Error(`Erro ao obter anúncios: ${response.data.message}`);
       }
     }
   } catch (error) {
     console.error(error);
-    throw new Error('Erro ao obter anúncios da conta Kwai Ads.');
+    throw new Error('Erro ao obter anúncios: ', error);
   }
 }
 

@@ -10,48 +10,41 @@ const secretKey = process.env.SECRET_KEY;
 const corpId = process.env.CORP_ID;
 
 async function obterConjuntosAnuncio(req, res) {
+  const userId = req.user._id;
+  const { contaId, granularity, dataBeginTime, dataEndTime, timeZoneIana, pageNo, pageSize } = req.body;
+  
+  const usuario = await Usuario.findById(userId);
+  if (!usuario.contasVinculadas || usuario.contasVinculadas.length === 0) {
+    return res.status(400).json({ error: 'Usuário não possui contas vinculadas' });
+  }
+  
+  if (!usuario.contasVinculadas.includes(contaId)) {
+    return res.status(403).json({ error: 'Conta não vinculada ao usuário' });
+  }
+
   try {
-    const { status, search, page = 1, limit = 10 } = req.body;
-    const userId = req.user._id;
-    const usuario = await Usuario.findById(userId);
-    const contasVinculadas = usuario.contasVinculadas;
-
-    const conjuntosAnuncio = await Promise.all(
-      contasVinculadas.map(async (contaId) => {
-        const conjuntosAnuncioPorConta = await obterConjuntosAnuncioPorConta(contaId, status, search, page, limit);
-        return conjuntosAnuncioPorConta;
-      })
-    );
-
-    const conjuntosAnuncioFlat = conjuntosAnuncio.flat();
-    const totalConjuntosAnuncio = conjuntosAnuncioFlat.length;
-
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
-    const conjuntosAnuncioPaginados = conjuntosAnuncioFlat.slice(startIndex, endIndex);
-
-    res.json({
-      total: totalConjuntosAnuncio,
-      conjuntosAnuncio: conjuntosAnuncioPaginados,
-    });
+    const response = await obterConjuntosAnuncioPorData(contaId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize);
+    res.json(response);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Erro ao obter os conjuntos de anúncio.' });
+    res.status(500).json({ error: error.message });
   }
 }
 
-async function obterConjuntosAnuncioPorConta(accountId, status, search, page, limit) {
+async function obterConjuntosAnuncioPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize) {
   const params = {
-    accountId: accountId,
-    status: status ? parseInt(status) : null,
-    unitIdList: search ? [parseInt(search)] : null,
-    pageNo: page,
-    pageSize: limit,
+    granularity,
+    dataBeginTime,
+    dataEndTime,
+    timeZoneIana,
+    accountId,
+    corpId,
+    pageNo, 
+    pageSize 
   };
 
   try {
     const response = await axios.post(
-      'https://developers.kwai.com/rest/n/mapi/unit/dspUnitPageQueryPerformance',
+      'https://developers.kwai.com/rest/n/mapi/report/dspUnitEffectQuery',
       params,
       {
         headers: {
@@ -62,19 +55,19 @@ async function obterConjuntosAnuncioPorConta(accountId, status, search, page, li
     );
 
     if (response.data.status === 200) {
-      const conjuntosAnuncio = response.data.data.data;
-      return conjuntosAnuncio;
+      const totalGasto = response?.data?.data;
+      return totalGasto || 0;
     } else {
       if (response.data.status === 401) {
-        await atualizarAccessToken();
-        return obterConjuntosAnuncioPorConta(accountId, status, search, page, limit);
+          await atualizarAccessToken();
+          return obterConjuntosAnuncioPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana);
       } else {
-        throw new Error(`Erro ao obter conjuntos de anúncio da conta Kwai Ads: ${response.data.message}`);
+        throw new Error(`Erro ao obter anúncios: ${response.data.message}`);
       }
     }
   } catch (error) {
     console.error(error);
-    throw new Error('Erro ao obter conjuntos de anúncio da conta Kwai Ads.');
+    throw new Error('Erro ao obter anúncios: ', error);
   }
 }
 

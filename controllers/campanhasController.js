@@ -10,76 +10,6 @@ const clientId = process.env.CLIENT_ID;
 const secretKey = process.env.SECRET_KEY;
 const corpId = process.env.CORP_ID;
 
-async function obterCampanhas(req, res) {
-  try {
-    const { status, search, page = 1, limit = 10 } = req.body;
-    const userId = req.user._id;
-    const usuario = await Usuario.findById(userId);
-    const contasVinculadas = usuario.contasVinculadas;
-
-    const campanhas = await Promise.all(
-      contasVinculadas.map(async (contaId) => {
-        const campanhasPorConta = await obterCampanhasPorConta(contaId, status, search, page, limit);
-        return campanhasPorConta;
-      })
-    );
-
-    const campanhasFlat = campanhas.flat();
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
-    const campanhasPaginadas = campanhasFlat.slice(startIndex, endIndex);
-    console.log(campanhasPaginadas[0])
-
-    res.json({
-      total: campanhasPaginadas[0].total,
-      campanhas: campanhasPaginadas[0].data,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Erro ao obter as campanhas.' });
-  }
-}
-
-async function obterCampanhasPorConta(accountId, status, search, page, limit) {
-  const params = {
-    accountId: accountId,
-    adCategory: 1,
-    status: status ? parseInt(status) : null,
-    campaignIdList: search ? [parseInt(search)] : null,
-    pageNo: page,
-    pageSize: limit,
-  };
-
-  console.log(params);
-  
-  try {
-    const response = await axios.post(
-      'https://developers.kwai.com/rest/n/mapi/campaign/dspCampaignPageQueryPerformance',
-      params,
-      {
-        headers: {
-          'Access-Token': accessToken,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    if (response.data.status === 200) {
-      const campanhas = response.data.data;
-      return campanhas;
-    } else {
-      if (response.data.status === 401) {
-        await atualizarAccessToken();
-        return obterCampanhasPorConta(accountId, status, search, page, limit);
-      } else {
-        throw new Error(`Erro ao obter campanhas da conta Kwai Ads: ${response.data.message}`);
-      }
-    }
-  } catch (error) {
-    console.error(error);
-    throw new Error('Erro ao obter campanhas da conta Kwai Ads.');
-  }
-}
-
 async function deletarCampanha(req, res) {
   try {
     const { campaignId } = req.body;
@@ -283,26 +213,7 @@ async function atualizarAccessToken() {
   }
 }
 
-async function obterTotalGastoHoje(req, res) {
-  const userId = req.user._id;
-  const { contaId } = req.body;
-  
-  const usuario = await Usuario.findById(userId);
-  if (!usuario.contasVinculadas || usuario.contasVinculadas.length === 0) {
-    return res.status(400).json({ error: 'Usuário não possui contas vinculadas' });
-  }
-  
-  if (!usuario.contasVinculadas.includes(contaId)) {
-    return res.status(403).json({ error: 'Conta não vinculada ao usuário' });
-  }
-
-  const dataAtual = moment().format('YYYY-MM-DD');
-  const totalGastoHoje = await obterTotalGastoPorData(contaId, dataAtual);
-
-  res.json(totalGastoHoje);
-}
-
-async function obterTotalGastoHoje(req, res) {
+async function obterCampanhas(req, res) {
   const userId = req.user._id;
   const { contaId, granularity, dataBeginTime, dataEndTime, timeZoneIana, pageNo, pageSize } = req.body;
   
@@ -316,14 +227,14 @@ async function obterTotalGastoHoje(req, res) {
   }
 
   try {
-    const response = await obterTotalGastoPorData(contaId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize);
+    const response = await obterCampanhasPorData(contaId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize);
     res.json(response);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 }
 
-async function obterTotalGastoPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize) {
+async function obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize) {
   const params = {
     granularity,
     dataBeginTime,
@@ -353,14 +264,14 @@ async function obterTotalGastoPorData(accountId, dataBeginTime, dataEndTime, gra
     } else {
       if (response.data.status === 401) {
           await atualizarAccessToken();
-          return obterTotalGastoPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana);
+          return obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana);
       } else {
-        throw new Error(`Erro ao obter o total gasto: ${response.data.message}`);
+        throw new Error(`Erro ao obter campanhas: ${response.data.message}`);
       }
     }
   } catch (error) {
     console.error(error);
-    throw new Error('Erro ao obter o total gasto: ', error);
+    throw new Error('Erro ao obter campanhas: ', error);
   }
 }
 
@@ -369,6 +280,5 @@ module.exports = {
   obterCampanhas,
   deletarCampanha,
   atualizarStatusCampanha,
-  duplicarCampanhaPorConta,
-  obterTotalGastoHoje
+  duplicarCampanhaPorConta
 };
