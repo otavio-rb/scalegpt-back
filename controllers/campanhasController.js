@@ -304,7 +304,7 @@ async function obterTotalGastoHoje(req, res) {
 
 async function obterTotalGastoHoje(req, res) {
   const userId = req.user._id;
-  const { contaId, granularity, dataBeginTime, dataEndTime, timeZoneIana } = req.body;
+  const { contaId, granularity, dataBeginTime, dataEndTime, timeZoneIana, pageNo, pageSize } = req.body;
   
   const usuario = await Usuario.findById(userId);
   if (!usuario.contasVinculadas || usuario.contasVinculadas.length === 0) {
@@ -316,21 +316,23 @@ async function obterTotalGastoHoje(req, res) {
   }
 
   try {
-    const response = await obterTotalGastoPorData(contaId, dataBeginTime, dataEndTime, granularity, timeZoneIana);
+    const response = await obterTotalGastoPorData(contaId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize);
     res.json(response);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 }
 
-async function obterTotalGastoPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana) {
+async function obterTotalGastoPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize) {
   const params = {
     granularity,
     dataBeginTime,
     dataEndTime,
     timeZoneIana,
     accountId,
-    corpId, 
+    corpId,
+    pageNo, 
+    pageSize 
   };
 
   try {
