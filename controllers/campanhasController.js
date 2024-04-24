@@ -335,7 +335,7 @@ async function obterTotalGastoPorData(accountId, dataBeginTime, dataEndTime, gra
 
   try {
     const response = await axios.post(
-      'https://developers.kwai.com/rest/n/mapi/report/dspAccountEffectQuery',
+      'https://developers.kwai.com/rest/n/mapi/report/dspCampaignEffectQuery',
       params,
       {
         headers: {
