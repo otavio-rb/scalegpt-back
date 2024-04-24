@@ -110,7 +110,6 @@ async function obterTotalGastoPorData(accountId, data) {
         accountId: accountId,
         corpId: corpId,
     };
-    console.log(params)
   
     try {
       const response = await axios.post(
@@ -346,7 +345,6 @@ async function atualizarAccessToken() {
     if (response.data) {
       accessToken = response.data.access_token;
     } else {
-      console.log(response, "blabla")
       throw new Error(`Erro ao atualizar o token de acesso`);
     }
   } catch (error) {

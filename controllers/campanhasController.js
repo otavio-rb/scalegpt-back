@@ -8,6 +8,7 @@ let accessToken = process.env.ACCESS_TOKEN;
 const refreshToken = process.env.REFRESH_TOKEN;
 const clientId = process.env.CLIENT_ID;
 const secretKey = process.env.SECRET_KEY;
+const corpId = process.env.CORP_ID;
 
 async function obterCampanhas(req, res) {
   try {
@@ -282,9 +283,90 @@ async function atualizarAccessToken() {
   }
 }
 
+async function obterTotalGastoHoje(req, res) {
+  const userId = req.user._id;
+  const { contaId } = req.body;
+  
+  const usuario = await Usuario.findById(userId);
+  if (!usuario.contasVinculadas || usuario.contasVinculadas.length === 0) {
+    return res.status(400).json({ error: 'Usuário não possui contas vinculadas' });
+  }
+  
+  if (!usuario.contasVinculadas.includes(contaId)) {
+    return res.status(403).json({ error: 'Conta não vinculada ao usuário' });
+  }
+
+  const dataAtual = moment().format('YYYY-MM-DD');
+  const totalGastoHoje = await obterTotalGastoPorData(contaId, dataAtual);
+
+  res.json(totalGastoHoje);
+}
+
+async function obterTotalGastoHoje(req, res) {
+  const userId = req.user._id;
+  const { contaId, granularity, dataBeginTime, dataEndTime, timeZoneIana } = req.body;
+  
+  const usuario = await Usuario.findById(userId);
+  if (!usuario.contasVinculadas || usuario.contasVinculadas.length === 0) {
+    return res.status(400).json({ error: 'Usuário não possui contas vinculadas' });
+  }
+  
+  if (!usuario.contasVinculadas.includes(contaId)) {
+    return res.status(403).json({ error: 'Conta não vinculada ao usuário' });
+  }
+
+  try {
+    const response = await obterTotalGastoPorData(contaId, dataBeginTime, dataEndTime, granularity, timeZoneIana);
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+
+async function obterTotalGastoPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana) {
+  const params = {
+    granularity,
+    dataBeginTime,
+    dataEndTime,
+    timeZoneIana,
+    accountId,
+    corpId, 
+  };
+
+  try {
+    const response = await axios.post(
+      'https://developers.kwai.com/rest/n/mapi/report/dspAccountEffectQuery',
+      params,
+      {
+        headers: {
+          'Access-Token': accessToken,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (response.data.status === 200) {
+      const totalGasto = response?.data?.data;
+      return totalGasto || 0;
+    } else {
+      if (response.data.status === 401) {
+          await atualizarAccessToken();
+          return obterTotalGastoPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana);
+      } else {
+        throw new Error(`Erro ao obter o total gasto: ${response.data.message}`);
+      }
+    }
+  } catch (error) {
+    console.error(error);
+    throw new Error('Erro ao obter o total gasto: ', error);
+  }
+}
+
+
 module.exports = {
   obterCampanhas,
   deletarCampanha,
   atualizarStatusCampanha,
-  duplicarCampanhaPorConta
+  duplicarCampanhaPorConta,
+  obterTotalGastoHoje
 };

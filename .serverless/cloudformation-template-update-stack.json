@@ -162,7 +162,7 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/scalegpt-back/dev/1713187251953-2024-04-15T13:20:51.953Z/app.zip"
+          "S3Key": "serverless/scalegpt-back/dev/1713909087886-2024-04-23T21:51:27.886Z/app.zip"
         },
         "Handler": "index.handler",
         "Runtime": "nodejs18.x",
@@ -171,14 +171,13 @@
         "Timeout": 30,
         "Environment": {
           "Variables": {
-            "MONGODB_URI": "mongodb://localhost:27017/test",
-            "REFRESH_TOKEN": "IASDNIASDNAS",
+            "MONGODB_URI": "mongodb://root:example@localhost:27017/test?authSource=admin",
+            "REFRESH_TOKEN": "18339d93-49f7-4326-a498-70f35f2e0695",
             "ACCESS_TOKEN": "7e9ff4c4-954e-4a03-931c-5de8c8b22977",
-            "CLIENT_ID": "1231293123",
-            "SECRET_KEY": "213123123",
-            "CORP_ID": "1239123912931293",
-            "JWT_SECRET": "2139128312938123",
-            "JWT_KEY": "2139128312938123"
+            "CLIENT_ID": "tmM2YXmM",
+            "SECRET_KEY": "11f8a63f2ad33b98dbd95d42d4fb70fe8f3d37f1",
+            "CORP_ID": "1005",
+            "JWT_SECRET": "2139128312938123"
           }
         },
         "Role": {
@@ -192,14 +191,14 @@
         "AppLogGroup"
       ]
     },
-    "AppLambdaVersionrKgBwa5SkhlKFdNfOGAKYlSiiMkuurfFZ3iyl4pGuVY": {
+    "AppLambdaVersionTSyTygfsdJuzaGqCgXJ1dIDNEdDeKitc6vKk076d0E": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
         "FunctionName": {
           "Ref": "AppLambdaFunction"
         },
-        "CodeSha256": "kjoSylgO81qfJd9DL1rgC0YnmZ5jMV3UqiDRGMLATTM="
+        "CodeSha256": "t6Jc1Zexh2TmdwyjQS82/pqEiOqarZg+fV3vKqz+dTM="
       }
     },
     "ApiGatewayRestApi": {
@@ -324,7 +323,7 @@
         "AppLambdaPermissionApiGateway"
       ]
     },
-    "ApiGatewayDeployment1713187241355": {
+    "ApiGatewayDeployment1713909077350": {
       "Type": "AWS::ApiGateway::Deployment",
       "Properties": {
         "RestApiId": {
@@ -387,7 +386,7 @@
     "AppLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "AppLambdaVersionrKgBwa5SkhlKFdNfOGAKYlSiiMkuurfFZ3iyl4pGuVY"
+        "Ref": "AppLambdaVersionTSyTygfsdJuzaGqCgXJ1dIDNEdDeKitc6vKk076d0E"
       },
       "Export": {
         "Name": "sls-scalegpt-back-dev-AppLambdaFunctionQualifiedArn"
