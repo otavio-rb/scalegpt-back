@@ -12,12 +12,12 @@ const corpId = process.env.CORP_ID;
 async function obterConjuntosAnuncio(req, res) {
   const userId = req.user._id;
   const { contaId, granularity, dataBeginTime, dataEndTime, timeZoneIana, pageNo, pageSize } = req.body;
-  
+
   const usuario = await Usuario.findById(userId);
   if (!usuario.contasVinculadas || usuario.contasVinculadas.length === 0) {
     return res.status(400).json({ error: 'Usuário não possui contas vinculadas' });
   }
-  
+
   if (!usuario.contasVinculadas.includes(contaId)) {
     return res.status(403).json({ error: 'Conta não vinculada ao usuário' });
   }
@@ -38,8 +38,8 @@ async function obterConjuntosAnuncioPorData(accountId, dataBeginTime, dataEndTim
     timeZoneIana,
     accountId,
     corpId,
-    pageNo, 
-    pageSize 
+    pageNo,
+    pageSize
   };
 
   try {
@@ -59,8 +59,8 @@ async function obterConjuntosAnuncioPorData(accountId, dataBeginTime, dataEndTim
       return totalGasto || 0;
     } else {
       if (response.data.status === 401) {
-          await atualizarAccessToken();
-          return obterConjuntosAnuncioPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana);
+        await atualizarAccessToken();
+        return obterConjuntosAnuncioPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana);
       } else {
         throw new Error(`Erro ao obter anúncios: ${response.data.message}`);
       }
@@ -180,12 +180,99 @@ async function atualizarStatusConjuntoAnuncioPorConta(accountId, unitIdList, ope
   }
 }
 
+async function obterConjuntoAnuncioPorId(accountId, unitId) {
+  const params = {
+    accountId: accountId,
+    unitIdList: [unitId],
+  };
+  console.log(params)
+  try {
+    const response = await axios.post(
+      'https://developers.kwai.com/rest/n/mapi/unit/dspUnitPageQueryPerformance',
+      params,
+      {
+        headers: {
+          'Access-Token': accessToken,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (response.data.status === 200) {
+      const conjuntoAnuncio = response.data.data.data[0];
+      return conjuntoAnuncio;
+    } else {
+      if (response.data.status === 401) {
+        await atualizarAccessToken();
+        return obterConjuntoAnuncioPorId(accountId, unitId);
+      } else {
+        throw new Error(`Erro ao obter conjunto de anúncio por ID: ${response.data.message}`);
+      }
+    }
+  } catch (error) {
+    console.error('Erro ao obter conjunto de anúncio por ID', error);
+    throw error;
+  }
+}
+
+async function duplicarConjuntoAnuncio(req, res, next) {
+  const { accountId, unitId, quantidade } = req.body;
+  const conjuntoAnuncio = await obterConjuntoAnuncioPorId(accountId, unitId);
+  let novosConjuntosAnuncio = [];
+
+  for (let i = 0; i < quantidade; i++) {
+    const novoConjuntoAnuncio = {
+      ...conjuntoAnuncio,
+      unitName: `${conjuntoAnuncio.unitName} (Duplicado ${i + 1})`,
+    };
+    delete novoConjuntoAnuncio.unitId;
+    novoConjuntoAnuncio.budgetType = 1;
+    if(novoConjuntoAnuncio.budgetType == 1) { 
+      novoConjuntoAnuncio.dayBudget = null 
+      novoConjuntoAnuncio.budgetSchedule = null
+    }
+    novoConjuntoAnuncio.urlType = 2;
+    novosConjuntosAnuncio.push(novoConjuntoAnuncio);
+  }
+  const params = {
+    accountId: accountId,
+    unitAddModelList: novosConjuntosAnuncio,
+  };
+  console.log(params)
+  try {
+    const response = await axios.post(
+      'https://developers.kwai.com/rest/n/mapi/unit/dspUnitAddPerformance',
+      params,
+      {
+        headers: {
+          'Access-Token': accessToken,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (response.data.status === 200) {
+      res.json(response);
+    } else {
+      if (response.data.status === 401) {
+        await atualizarAccessToken();
+        return duplicarConjuntoAnuncio(accountId, unitId, quantidade);
+      } else {
+        throw new Error(`Erro ao duplicar conjunto de anúncio: ${response.data.message}`);
+      }
+    }
+  } catch (error) {
+    console.error('Erro ao duplicar conjunto de anúncio', error);
+    next(error)
+  }
+}
+
 async function atualizarAccessToken() {
   try {
     const response = await axios.get(
       `https://developers.kwai.com/oauth/token?grant_type=refresh_token&refresh_token=${refreshToken}&client_id=${clientId}&client_secret=${secretKey}`,
     );
-    
+
     if (response.data) {
       accessToken = response.data.access_token;
     } else {
@@ -201,4 +288,5 @@ module.exports = {
   obterConjuntosAnuncio,
   deletarConjuntoAnuncio,
   atualizarStatusConjuntoAnuncio,
+  duplicarConjuntoAnuncio
 };

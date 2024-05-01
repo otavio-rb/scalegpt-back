@@ -2,7 +2,7 @@ const axios = require('axios');
 const Usuario = require('../models/Usuario');
 require('dotenv').config();
 const { updateCampaignStatusSchema } = require('../validators/validationSchemas');
-const Campanha = require('../models/Campanha'); 
+const Campanha = require('../models/Campanha');
 
 let accessToken = process.env.ACCESS_TOKEN;
 const refreshToken = process.env.REFRESH_TOKEN;
@@ -94,7 +94,6 @@ async function atualizarStatusCampanhaPorConta(accountId, campaignId, openStatus
     campaignIdList: [parseInt(campaignId)],
     openStatus: openStatus,
   };
-  console.log(params)
 
   try {
     const response = await axios.post(
@@ -123,76 +122,100 @@ async function atualizarStatusCampanhaPorConta(accountId, campaignId, openStatus
   }
 }
 
-async function duplicarCampanhaPorConta(req, res, next) {
+async function obterCampanhaPorId(accountId, campaignId) {
+  const params = {
+    accountId: accountId,
+    adCategory: 1,
+    campaignIdList: [campaignId],
+    status: 1, // Assume que queremos campanhas ativas
+    pageNo: 1,
+    pageSize: 1 // Apenas uma campanha, já que conhecemos o ID
+  };
+
   try {
-    const {
-      accountId,
-      adCategory,
-      campaignType,
-      marketingType,
-      deliveryStrategy,
-      budgetType,
-      dayBudget,
-      budgetSchedule,
-      campaignName
-    } = req.body;
-
-    // Cria um objeto com os dados recebidos para validação
-    const novaCampanhaData = {
-      accountId,
-      adCategory,
-      campaignType,
-      marketingType,
-      deliveryStrategy,
-      budgetType,
-      dayBudget,
-      budgetSchedule,
-      campaignName
-    };
-
-    // Validar os dados usando o esquema Joi do modelo Campanha
-    const { error } = Campanha.joiSchema.validate(novaCampanhaData);
-    if (error) {
-      return res.status(400).json({ error: error.details[0].message });
-    }
-    console.log(novaCampanhaData)
-    const novaCampanha = {
-      accountId: accountId,
-      campaignAddModelList: [
-        {
-          adCategory: adCategory,
-          campaignType: campaignType,
-          marketingType: marketingType,
-          deliveryStrategy: deliveryStrategy,
-          budgetType: budgetType,
-          dayBudget: dayBudget,
-          budgetSchedule: budgetSchedule,
-          campaignName: campaignName
-        }
-      ],
-    };
-
-    // Enviar requisição para criar a nova campanha
-    const response = await axios.post('https://developers.kwai.com/rest/n/mapi/campaign/dspCampaignAddPerformance', novaCampanha, {
-      headers: {
-        'Access-Token': accessToken,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (response.data.status === 200) {
-      res.json({ message: 'Campanha duplicada com sucesso.', data: response.data });
-    } else {
-      if (response.data.status === 401) {
-        await atualizarAccessToken();
-        return duplicarCampanhaPorConta(req, res, next);
-      } else {
-        throw new Error(`Erro ao duplicar campanha: ${response.data.message}`);
+    const response = await axios.post(
+      'https://developers.kwai.com/rest/n/mapi/campaign/dspCampaignPageQueryPerformance',
+      params,
+      {
+        headers: {
+          'Access-Token': accessToken,
+          'Content-Type': 'application/json',
+        },
       }
+    );
+
+    if (response.data.status === 200 && response.data.data.total > 0) {
+      return response.data.data.data[0];
+    } else if (response.data.status === 401) {
+      await atualizarAccessToken();
+      return obterCampanhaPorId(accountId, campaignId);
+    } else {
+      throw new Error(`Erro ao obter campanha por ID: ${response.data.message}`);
     }
   } catch (error) {
-    console.error(error);
-    next(error);
+    console.error('Erro ao obter campanha por ID', error);
+    throw error;
+  }
+}
+
+async function duplicarCampanha(req, res) {
+  const { campaignId, accountId, quantidade } = req.body;
+  const campanhaOriginal = await obterCampanhaPorId(accountId, campaignId);
+
+  let novasCampanhas = [];
+
+  for (let i = 0; i < quantidade; i++) {
+    const novaCampanha = {
+      adCategory: campanhaOriginal.adCategory,
+      campaignType: campanhaOriginal.campaignType,
+      marketingType: campanhaOriginal.marketingType,
+      deliveryStrategy: campanhaOriginal.deliveryStrategy,
+      budgetType: campanhaOriginal.dayBudget > 0 ? 2 : (campanhaOriginal.budgetSchedule.length > 0 ? 3 : 1),
+      dayBudget: campanhaOriginal.dayBudget,
+      campaignName: `${campanhaOriginal.campaignName} (Duplicado ${i + 1})`,
+      cboAuthorized: campanhaOriginal.deliveryStrategy === 3 ? campanhaOriginal.budgetOptimization : undefined // CBO autorizado apenas se for Lowest Cost
+    };
+
+    if (campanhaOriginal.budgetSchedule.length > 0) {
+      novaCampanha.budgetSchedule = campanhaOriginal.budgetSchedule;
+    }
+
+    // Verifica se dayBudget e budgetSchedule estão de acordo com o budgetType
+    if (novaCampanha.budgetType === 2 && !novaCampanha.dayBudget) {
+      novaCampanha.dayBudget = 1000000; // Valor mínimo teórico para budget diário
+    }
+
+    novasCampanhas.push(novaCampanha);
+  }
+
+  const params = {
+    accountId: accountId,
+    campaignAddModelList: novasCampanhas,
+  };
+
+  try {
+    const response = await axios.post(
+      'https://developers.kwai.com/rest/n/mapi/campaign/dspCampaignAddPerformance',
+      params,
+      {
+        headers: {
+          'Access-Token': accessToken,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (response.data.status === 200) {
+      res.json(response.data);
+    } else if (response.data.status === 401) {
+      await atualizarAccessToken();
+      return duplicarCampanha(req, res);
+    } else {
+      throw new Error(`Erro ao duplicar campanha: ${response.data.message}`);
+    }
+  } catch (error) {
+    console.error('Erro ao duplicar campanha', error);
+    res.status(500).send('Erro ao duplicar campanha');
   }
 }
 
@@ -216,18 +239,20 @@ async function atualizarAccessToken() {
 async function obterCampanhas(req, res) {
   const userId = req.user._id;
   const { contaId, granularity, dataBeginTime, dataEndTime, timeZoneIana, pageNo, pageSize } = req.body;
-  
+  const timestampBegin = toTimestampBR(req.body.dataBeginTime);
+  const timestampEnd = toTimestampBR(req.body.dataEndTime);
+
   const usuario = await Usuario.findById(userId);
   if (!usuario.contasVinculadas || usuario.contasVinculadas.length === 0) {
     return res.status(400).json({ error: 'Usuário não possui contas vinculadas' });
   }
-  
+
   if (!usuario.contasVinculadas.includes(contaId)) {
     return res.status(403).json({ error: 'Conta não vinculada ao usuário' });
   }
 
   try {
-    const response = await obterCampanhasPorData(contaId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize);
+    const response = await obterCampanhasPorData(contaId, timestampBegin, timestampEnd, granularity, timeZoneIana, pageNo, pageSize);
     res.json(response);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -242,8 +267,8 @@ async function obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, gran
     timeZoneIana,
     accountId,
     corpId,
-    pageNo, 
-    pageSize 
+    pageNo,
+    pageSize
   };
 
   try {
@@ -263,8 +288,8 @@ async function obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, gran
       return totalGasto || 0;
     } else {
       if (response.data.status === 401) {
-          await atualizarAccessToken();
-          return obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana);
+        await atualizarAccessToken();
+        return obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana);
       } else {
         throw new Error(`Erro ao obter campanhas: ${response.data.message}`);
       }
@@ -275,10 +300,34 @@ async function obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, gran
   }
 }
 
+function toTimestampBR(dateStr) {
+  // Assume dateStr está no formato "dd/mm/yyyy hh:mm:ss"
+  const parts = dateStr.split(' ');
+  const dateParts = parts[0].split('/');
+  const timeParts = parts[1].split(':');
+
+  // Constrói um objeto Date
+  // Note que o mês é 0-indexado em JavaScript, então subtraímos 1
+  const date = new Date(Date.UTC(
+    parseInt(dateParts[2], 10),
+    parseInt(dateParts[1], 10) - 1,
+    parseInt(dateParts[0], 10),
+    parseInt(timeParts[0], 10),
+    parseInt(timeParts[1], 10),
+    parseInt(timeParts[2], 10)
+  ));
+
+  // Ajusta para o fuso horário UTC-3
+  const utc3Offset = 3 * 60 * 60 * 1000; // 3 horas em milissegundos
+  const timestamp = date.getTime() - utc3Offset;
+
+  return timestamp;
+}
+
 
 module.exports = {
   obterCampanhas,
   deletarCampanha,
   atualizarStatusCampanha,
-  duplicarCampanhaPorConta
+  duplicarCampanha
 };

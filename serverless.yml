@@ -1,12 +1,12 @@
-service: scalegpt-back
+service: scalegpt-back-api
 
 provider:
   name: aws
-  runtime: nodejs18.x
+  runtime: nodejs20.x
   stage: dev
   region: us-east-1
   environment:
-    MONGODB_URI: mongodb://root:example@tcp://0.tcp.sa.ngrok.io:14125/test?authSource=admin
+    MONGODB_URI: mongodb://root:example@0.tcp.sa.ngrok.io:15157/test?authSource=admin
     REFRESH_TOKEN: 18339d93-49f7-4326-a498-70f35f2e0695
     ACCESS_TOKEN: 7e9ff4c4-954e-4a03-931c-5de8c8b22977
     CLIENT_ID: tmM2YXmM
@@ -17,13 +17,19 @@ provider:
 plugins:
   - serverless-offline
   - serverless-dotenv-plugin
+  - serverless-webpack
   # - serverless-openapi-documentation
   # - serverless-aws-documentation
   # - serverless-webpack
+
 package:
   individually: true
-  exclude:
-    - test/**
+  patterns:
+    - '!node_modules/**'
+    - 'package.json'
+    - 'node_modules/serverless-http/**'
+    - 'node_modules/express/**'
+    
 functions:
   app:
     handler: index.handler
@@ -35,16 +41,9 @@ functions:
       - http:
           path: /{proxy+}
           method: ANY
+
 custom:
-  # webpack:
-  #     webpackConfig: ./webpack.config.js
-  #     includeModules: true
   dotenv:
     path: ./.env
   serverless-offline:
     httpPort: 3000
-  # documentation:
-  #   version: '1.0.0'
-  #   title: 'API Serverless scalegpt-back'
-  #   description: 'Esta é a documentação API do meu projeto Serverless.'
-  #   models: ['models/*.js'] 

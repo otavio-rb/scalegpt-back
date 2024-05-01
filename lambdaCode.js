@@ -237,8 +237,8 @@ async function obterConjuntosAnuncioPorCampanha(accountId, campaignId) {
   async function duplicarConjuntoAnuncio(accountId, unitId, quantidade) {
     const conjuntoAnuncio = await obterConjuntoAnuncioPorId(accountId, unitId);
   
-    const novosConjuntosAnuncio = [];
-  
+
+    
     for (let i = 0; i < quantidade; i++) {
       const novoConjuntoAnuncio = {
         ...conjuntoAnuncio,

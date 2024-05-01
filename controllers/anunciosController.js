@@ -77,8 +77,6 @@ async function deletarAnuncio(req, res) {
     const userId = req.user._id;
     const usuario = await Usuario.findById(userId);
     const contasVinculadas = usuario.contasVinculadas;
-    console.log("contasVinculadas", contasVinculadas)
-    console.log("length", contasVinculadas.length)
 
     const deletarPromises = contasVinculadas.map(async (contaId) => {
       await deletarAnuncioPorConta(contaId, creativeId);
@@ -98,7 +96,6 @@ async function deletarAnuncioPorConta(accountId, creativeId) {
     accountId: accountId,
     creativeIdList: [parseInt(creativeId)],
   };
-  console.log("params", params)
 
   try {
     const response = await axios.post(
@@ -186,36 +183,106 @@ async function atualizarStatusAnuncioPorConta(accountId, creativeId, openStatus)
   }
 }
 
-async function duplicarAnuncioPorConta(req, res, next) {
+async function obterAnuncioPorId(accountId, creativeIdList, unitIdList) {
+  const params = {
+    accountId: accountId,
+    adCategory: 1,
+    campaignIdList: [],
+    unitIdList: unitIdList,
+    creativeIdList: creativeIdList,
+    status: 1, // Assume que queremos anúncios ativos
+    pageNo: 1,
+    pageSize: 1 // Apenas um anúncio, já que conhecemos o ID
+  };
+  console.log("obterAnuncioPorId", params)
+
   try {
-    const dadosAnuncio = req.body;
-
-    const { error } = anuncioSchema.validate(dadosAnuncio);
-    if (error) {
-      return res.status(400).json({ error: error.details[0].message });
-    }
-
     const response = await axios.post(
-      'https://developers.kwai.com/rest/n/mapi/creative/dspCreativeAddPerformance',
-      dadosAnuncio,
+      'https://developers.kwai.com/rest/n/mapi/creative/dspCreativePageQueryPerformance',
+      params,
       {
         headers: {
-          'Access-Token': process.env.ACCESS_TOKEN,
+          'Access-Token': accessToken,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (response.data.status === 200 && response.data.data.total > 0) {
+      return response.data.data.data[0];
+    } else if (response.data.status === 401) {
+      await atualizarAccessToken();
+      return obterAnuncioPorId(accountId, creativeIdList, unitIdList);
+    } else {
+      throw new Error(`Erro ao obter anúncio por ID: ${response.data}`);
+    }
+  } catch (error) {
+    console.error('Erro ao obter anúncio por ID', error);
+    throw error;
+  }
+}
+
+async function duplicarAnuncio(req, res) {
+  const { accountId, creativeIdList, unitIdList, quantidade } = req.body;
+  const anuncioOriginal = await obterAnuncioPorId(accountId, creativeIdList, unitIdList);
+
+  let novosAnuncios = [];
+
+  for (let i = 0; i < quantidade; i++) {
+    const novoAnuncio = {
+      unitId: anuncioOriginal.unitId,
+      adCategory: anuncioOriginal.adCategory,
+      creativeType: 1,
+      materialType: anuncioOriginal.materialType,
+      photoId: anuncioOriginal.photoId,
+      subTitle: `${anuncioOriginal.subTitle} (Duplicado ${i + 1})`,
+      desc: anuncioOriginal.desc,
+      callToAction: anuncioOriginal.callToAction,
+      playableId: anuncioOriginal.playableId,
+      materialSourceType: anuncioOriginal.materialSourceType == undefined ? anuncioOriginal.materialSourceType : 0,
+      materialIdList: anuncioOriginal.materialIdList,
+      creativeName: `${anuncioOriginal.creativeName} (Duplicado ${i + 1})`,
+      useUnitAppIconAndName: anuncioOriginal.useUnitAppIconAndName == undefined ? anuncioOriginal.useUnitAppIconAndName : 0,
+      avatarId: anuncioOriginal.avatarId,
+      deepLink: anuncioOriginal.deepLink
+    };
+
+    novosAnuncios.push(novoAnuncio);
+  }
+
+  const params = {
+    accountId: accountId,
+    creativeAddModelList: novosAnuncios,
+  };
+
+  console.log(params);
+
+  try {
+    const response = await axios.post(
+      'https://developers.kwai.com/rest/n/mapi/creative/dspCreativeUpdatePerformance',
+      params,
+      {
+        headers: {
+          'Access-Token': accessToken,
           'Content-Type': 'application/json',
         },
       }
     );
 
     if (response.data.status === 200) {
-      res.json({ message: 'Anúncio duplicado com sucesso.', data: response.data });
+      res.json(response.data);
+    } else if (response.data.status === 401) {
+      await atualizarAccessToken();
+      return duplicarAnuncio(req, res);
     } else {
       throw new Error(`Erro ao duplicar anúncio: ${response.data.message}`);
     }
   } catch (error) {
-    console.error(error);
-    next(error);
+    console.error('Erro ao duplicar anúncio', error);
+    res.status(500).send('Erro ao duplicar anúncio');
   }
 }
+
 
 async function atualizarAccessToken() {
   try {
@@ -238,5 +305,5 @@ module.exports = {
   obterAnuncios,
   deletarAnuncio,
   atualizarStatusAnuncio,
-  duplicarAnuncioPorConta
+  duplicarAnuncio
 };

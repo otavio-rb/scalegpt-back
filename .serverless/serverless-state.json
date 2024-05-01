@@ -1,16 +1,16 @@
 {
   "service": {
-    "service": "scalegpt-back",
+    "service": "scalegpt-back-api",
     "serviceObject": {
-      "name": "scalegpt-back"
+      "name": "scalegpt-back-api"
     },
     "provider": {
       "name": "aws",
-      "runtime": "nodejs18.x",
+      "runtime": "nodejs20.x",
       "stage": "dev",
       "region": "us-east-1",
       "environment": {
-        "MONGODB_URI": "mongodb://root:example@localhost:27017/test?authSource=admin",
+        "MONGODB_URI": "mongodb://root:example@0.tcp.sa.ngrok.io:15157/test?authSource=admin",
         "REFRESH_TOKEN": "18339d93-49f7-4326-a498-70f35f2e0695",
         "ACCESS_TOKEN": "7e9ff4c4-954e-4a03-931c-5de8c8b22977",
         "CLIENT_ID": "tmM2YXmM",
@@ -95,7 +95,7 @@
           "AppLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/scalegpt-back-dev-app"
+              "LogGroupName": "/aws/lambda/scalegpt-back-api-dev-app"
             }
           },
           "IamRoleLambdaExecution": {
@@ -123,7 +123,7 @@
                     "Fn::Join": [
                       "-",
                       [
-                        "scalegpt-back",
+                        "scalegpt-back-api",
                         "dev",
                         "lambda"
                       ]
@@ -141,7 +141,7 @@
                         ],
                         "Resource": [
                           {
-                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/scalegpt-back-dev*:*"
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/scalegpt-back-api-dev*:*"
                           }
                         ]
                       },
@@ -152,7 +152,7 @@
                         ],
                         "Resource": [
                           {
-                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/scalegpt-back-dev*:*:*"
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/scalegpt-back-api-dev*:*:*"
                           }
                         ]
                       }
@@ -165,7 +165,7 @@
                 "Fn::Join": [
                   "-",
                   [
-                    "scalegpt-back",
+                    "scalegpt-back-api",
                     "dev",
                     {
                       "Ref": "AWS::Region"
@@ -183,16 +183,16 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/scalegpt-back/dev/1713909087886-2024-04-23T21:51:27.886Z/app.zip"
+                "S3Key": "serverless/scalegpt-back-api/dev/1714431631658-2024-04-29T23:00:31.658Z/app.zip"
               },
               "Handler": "index.handler",
-              "Runtime": "nodejs18.x",
-              "FunctionName": "scalegpt-back-dev-app",
+              "Runtime": "nodejs20.x",
+              "FunctionName": "scalegpt-back-api-dev-app",
               "MemorySize": 1024,
               "Timeout": 30,
               "Environment": {
                 "Variables": {
-                  "MONGODB_URI": "mongodb://root:example@localhost:27017/test?authSource=admin",
+                  "MONGODB_URI": "mongodb://root:example@0.tcp.sa.ngrok.io:15157/test?authSource=admin",
                   "REFRESH_TOKEN": "18339d93-49f7-4326-a498-70f35f2e0695",
                   "ACCESS_TOKEN": "7e9ff4c4-954e-4a03-931c-5de8c8b22977",
                   "CLIENT_ID": "tmM2YXmM",
@@ -212,20 +212,20 @@
               "AppLogGroup"
             ]
           },
-          "AppLambdaVersionTSyTygfsdJuzaGqCgXJ1dIDNEdDeKitc6vKk076d0E": {
+          "AppLambdaVersion9FefB96bHrZy1H98f79UrMvD9vjOXi3NoQE6Dx5d0": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "AppLambdaFunction"
               },
-              "CodeSha256": "t6Jc1Zexh2TmdwyjQS82/pqEiOqarZg+fV3vKqz+dTM="
+              "CodeSha256": "jwMoPV22MmQmDm2+nBy4/hGxxlsVlY/JFCnrcvtnoEI="
             }
           },
           "ApiGatewayRestApi": {
             "Type": "AWS::ApiGateway::RestApi",
             "Properties": {
-              "Name": "dev-scalegpt-back",
+              "Name": "dev-scalegpt-back-api",
               "EndpointConfiguration": {
                 "Types": [
                   "EDGE"
@@ -344,7 +344,7 @@
               "AppLambdaPermissionApiGateway"
             ]
           },
-          "ApiGatewayDeployment1713909077350": {
+          "ApiGatewayDeployment1714431627303": {
             "Type": "AWS::ApiGateway::Deployment",
             "Properties": {
               "RestApiId": {
@@ -401,16 +401,16 @@
               "Ref": "ServerlessDeploymentBucket"
             },
             "Export": {
-              "Name": "sls-scalegpt-back-dev-ServerlessDeploymentBucketName"
+              "Name": "sls-scalegpt-back-api-dev-ServerlessDeploymentBucketName"
             }
           },
           "AppLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "AppLambdaVersionTSyTygfsdJuzaGqCgXJ1dIDNEdDeKitc6vKk076d0E"
+              "Ref": "AppLambdaVersion9FefB96bHrZy1H98f79UrMvD9vjOXi3NoQE6Dx5d0"
             },
             "Export": {
-              "Name": "sls-scalegpt-back-dev-AppLambdaFunctionQualifiedArn"
+              "Name": "sls-scalegpt-back-api-dev-AppLambdaFunctionQualifiedArn"
             }
           },
           "ServiceEndpoint": {
@@ -436,7 +436,7 @@
               ]
             },
             "Export": {
-              "Name": "sls-scalegpt-back-dev-ServiceEndpoint"
+              "Name": "sls-scalegpt-back-api-dev-ServiceEndpoint"
             }
           }
         }
@@ -535,7 +535,8 @@
     },
     "plugins": [
       "serverless-offline",
-      "serverless-dotenv-plugin"
+      "serverless-dotenv-plugin",
+      "serverless-webpack"
     ],
     "pluginsData": {},
     "functions": {
@@ -558,20 +559,20 @@
             }
           }
         ],
-        "name": "scalegpt-back-dev-app",
+        "name": "scalegpt-back-api-dev-app",
         "package": {
-          "artifact": "/home/lincoln/workspace/scalegpt-back/.serverless/app.zip"
+          "artifact": ".serverless/app.zip"
         },
         "memory": 1024,
-        "runtime": "nodejs18.x",
+        "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "AppLambdaVersionTSyTygfsdJuzaGqCgXJ1dIDNEdDeKitc6vKk076d0E"
+        "versionLogicalId": "AppLambdaVersion9FefB96bHrZy1H98f79UrMvD9vjOXi3NoQE6Dx5d0"
       }
     },
     "configValidationMode": "warn",
     "serviceFilename": "serverless.yml",
     "initialServerlessConfig": {
-      "service": "scalegpt-back",
+      "service": "scalegpt-back-api",
       "provider": {
         "$ref": "$[\"service\"][\"provider\"]"
       },
@@ -580,11 +581,14 @@
       },
       "package": {
         "individually": true,
-        "exclude": [
-          "test/**"
+        "patterns": [
+          "!node_modules/**",
+          "package.json",
+          "node_modules/serverless-http/**",
+          "node_modules/express/**"
         ],
-        "artifactsS3KeyDirname": "serverless/scalegpt-back/dev/code-artifacts",
-        "artifactDirectoryName": "serverless/scalegpt-back/dev/1713909087886-2024-04-23T21:51:27.886Z"
+        "artifactsS3KeyDirname": "serverless/scalegpt-back-api/dev/code-artifacts",
+        "artifactDirectoryName": "serverless/scalegpt-back-api/dev/1714431631658-2024-04-29T23:00:31.658Z"
       },
       "functions": {
         "$ref": "$[\"service\"][\"functions\"]"
@@ -598,7 +602,7 @@
   },
   "package": {
     "individually": true,
-    "artifactDirectoryName": "serverless/scalegpt-back/dev/1713909087886-2024-04-23T21:51:27.886Z",
+    "artifactDirectoryName": "serverless/scalegpt-back-api/dev/1714431631658-2024-04-29T23:00:31.658Z",
     "artifact": ""
   }
 }
