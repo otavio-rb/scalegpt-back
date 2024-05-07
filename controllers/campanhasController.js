@@ -3,6 +3,7 @@ const Usuario = require('../models/Usuario');
 require('dotenv').config();
 const { updateCampaignStatusSchema } = require('../validators/validationSchemas');
 const Campanha = require('../models/Campanha');
+const { default: mongoose } = require('mongoose');
 
 let accessToken = process.env.ACCESS_TOKEN;
 const refreshToken = process.env.REFRESH_TOKEN;
@@ -236,7 +237,7 @@ async function atualizarAccessToken() {
   }
 }
 
-async function obterCampanhas(req, res) {
+async function obterCampanhas(req, res, next) {
   const userId = req.user._id;
   const { contaId, granularity, dataBeginTime, dataEndTime, timeZoneIana, pageNo, pageSize } = req.body;
   const timestampBegin = toTimestampBR(req.body.dataBeginTime);
@@ -252,25 +253,98 @@ async function obterCampanhas(req, res) {
   }
 
   try {
-    const response = await obterCampanhasPorData(contaId, timestampBegin, timestampEnd, granularity, timeZoneIana, pageNo, pageSize);
+    const response = await obterDadosCompletosCampanhas(contaId, timestampBegin, timestampEnd, granularity, timeZoneIana, pageNo, pageSize);
     res.json(response);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(res)
   }
 }
 
 async function obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize) {
-  const params = {
-    granularity,
-    dataBeginTime,
-    dataEndTime,
-    timeZoneIana,
-    accountId,
-    corpId,
-    pageNo,
-    pageSize
-  };
+  let totalCampanhas = [];
+  const adCategory = 1;
 
+  try {
+    while (true) {
+      const params = {
+        adCategory,
+        granularity,
+        dataBeginTime,
+        dataEndTime,
+        timeZoneIana,
+        accountId,
+        corpId,
+        pageNo,
+        pageSize
+      };
+
+      const response = await axios.post(
+        'https://developers.kwai.com/rest/n/mapi/campaign/dspCampaignPageQueryPerformance',
+        params,
+        {
+          headers: {
+            'Access-Token': accessToken,
+            'Content-Type': 'application/json',
+          },
+          timeout: 10000 // 10 segundos de timeout
+        }
+      );
+
+      if (response.data.status === 200) {
+        const campaigns = response.data.data.data;
+        totalCampanhas = totalCampanhas.concat(campaigns);
+        if (response.data.data.total <= pageNo * pageSize) {
+          break; // Sai do laço se a última página foi alcançada
+        }
+        pageNo++;
+      } else if (response.data.status === 401) {
+        await atualizarAccessToken();
+        continue;
+      } else {
+        throw new Error(`Erro ao obter campanhas: ${response.data.message}`);
+      }
+    }
+    return totalCampanhas;
+
+  } catch (error) {
+    console.error(error);
+    throw new Error(`Erro ao obter campanhas: ${error}`);
+  }
+}
+
+async function saveCampanhas(campanhasValidas) {
+  try {
+    const db = mongoose.connection;
+    
+    // Dropa a coleção existente
+    console.log('Dropando a coleção de campanhas...');
+    await db.dropCollection('campaign_all');
+
+    // Preparando dados para inserção, assumindo que a `campaign.deliveryStrategy` para `budgetType` já é ajustada
+    const campaignsToInsert = campanhasValidas.map(campaign => {
+      return {
+        ...campaign,
+        budgetType: campaign.deliveryStrategy
+      };
+    });
+
+    // Inserção em lote das campanhas
+    console.log('Inserindo novas campanhas na coleção campaign_all...');
+    await db.collection('campaign_all').insertMany(campaignsToInsert);
+    console.log('Campanhas inseridas com sucesso na coleção campaign_all.');
+  } catch (error) {
+    console.error('Erro ao salvar campanhas:', error);
+    // Verifica se a coleção existe antes de tentar dropar, se não existir, cria
+    if (error.message.includes('ns not found')) {
+      await db.createCollection('campaign_all');
+      console.log('Coleção campaign_all criada, tente inserir novamente.');
+    } else {
+      throw error;
+    }
+  }
+}
+
+async function obterMetricasCampanha(params) {
   try {
     const response = await axios.post(
       'https://developers.kwai.com/rest/n/mapi/report/dspCampaignEffectQuery',
@@ -283,25 +357,94 @@ async function obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, gran
       }
     );
 
-    if (response.data.status === 200) {
-      const totalGasto = response?.data?.data;
-      return totalGasto || 0;
+    if (response.data.status === 200 && response.data.data.total > 0) {
+      console.log('')
+      return response;
+    } else if (response.data.status === 401) {
+      await atualizarAccessToken();
+      return obterMetricasCampanha(params);
     } else {
-      if (response.data.status === 401) {
-        await atualizarAccessToken();
-        return obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana);
-      } else {
-        throw new Error(`Erro ao obter campanhas: ${response.data.message}`);
-      }
+      return [];
     }
   } catch (error) {
-    console.error(error);
-    throw new Error('Erro ao obter campanhas: ', error);
+    console.error('Erro ao obter as metricas da campanha', error);
+    console.log("data", params)
+    throw new Error(`Erro ao obter as metricas da campanha: ${error}`);
   }
 }
 
-function toTimestampBR(dateStr) {
-  // Assume dateStr está no formato "dd/mm/yyyy hh:mm:ss"
+async function obterDadosCompletosCampanhas(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize) {
+  try {
+    const campanhas = await obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize);
+    const metricasPromises = campanhas.map(campaign => {
+      const params = {
+        "accountId": campaign.accountId,
+        "campaignId": campaign.campaignId,
+        "dataBeginTime": dataBeginTime,
+        "dataEndTime": dataEndTime,
+        "timeZoneIana": timeZoneIana,
+        "adCategory": campaign.adCategory,
+        "pageNo": 1,
+        "pageSize": 10,
+        "granularity": 1
+      };
+      return obterMetricasCampanha(params).catch(() => null); 
+    });
+
+    const metricasResultados = await Promise.all(metricasPromises);
+    const dadosCompletos = campanhas.map(campaign => {
+      const metricas = metricasResultados.find(m => m && m.campaignId === campaign.campaignId) || metricasPadrao;
+      return { ...campaign, ...metricas };
+    });
+    console.log(dadosCompletos)
+    await saveCampanhas(dadosCompletos);
+    return getCampaigns(pageNo, pageSize);
+  } catch (error) {
+    console.error('Erro ao obter dados completos das campanhas', error);
+    throw error;
+  }
+}
+
+async function getCampaigns(pageNo = 1, pageSize = 10) {
+  try {
+    const db = mongoose.connection;
+    const collection = db.collection('campaign_all');
+    const totalItems = await collection.countDocuments();
+    const skip = (pageNo - 1) * pageSize;
+    const campaigns = await collection.find({})
+      .skip(skip)
+      .limit(pageSize)
+      .toArray();
+
+    return {
+      campaigns,
+      totalItems,
+      currentPage: pageNo,
+      totalPages: Math.ceil(totalItems / pageSize)
+    };
+  } catch (error) {
+    console.error('Erro ao buscar campanhas:', error);
+    throw error;
+  }
+}
+
+function toTimestampBR(dateInput) {
+  let dateStr = dateInput;
+
+  // Verifica se dateInput é um número (timestamp), então converte para string de data
+  if (typeof dateInput === 'number') {
+    const date = new Date(dateInput);
+    // Converte a data para o formato "dd/mm/yyyy hh:mm:ss"
+    const day = `0${date.getDate()}`.slice(-2);
+    const month = `0${date.getMonth() + 1}`.slice(-2); // Janeiro é 0!
+    const year = date.getFullYear();
+    const hours = `0${date.getHours()}`.slice(-2);
+    const minutes = `0${date.getMinutes()}`.slice(-2);
+    const seconds = `0${date.getSeconds()}`.slice(-2);
+    dateStr = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+  }
+
+  // Assume que dateStr está agora no formato "dd/mm/yyyy hh:mm:ss"
   const parts = dateStr.split(' ');
   const dateParts = parts[0].split('/');
   const timeParts = parts[1].split(':');
@@ -324,6 +467,100 @@ function toTimestampBR(dateStr) {
   return timestamp;
 }
 
+const metricasPadrao = {
+  time: 0,
+  accountName: "",
+  convertedTaxId: 0,
+  id: 0,
+  countryCode: 0,
+  clientId: 0,
+  buyingType: "",
+  biddingType: "",
+  cost: 0,
+  exposure: 0,
+  click: 0,
+  ctr: 0,
+  cpm: 0,
+  cpc: 0,
+  action: 0,
+  cvr: 0,
+  cpa: 0,
+  play3s: 0,
+  play5s: 0,
+  playFinished: 0,
+  activation: 0,
+  costPerActivation: 0,
+  activationRate: 0,
+  appLaunch: 0,
+  costPerAppLaunch: 0,
+  appLaunchRate: 0,
+  pageView: 0,
+  costPerPageView: 0,
+  pageViewRate: 0,
+  registration: 0,
+  costPerRegistration: 0,
+  registrationRate: 0,
+  addToCar: 0,
+  addToCart: 0,
+  costPerAddToCart: 0,
+  addToCartRate: 0,
+  play3sRate: 0,
+  costPerformancePlay3s: 0,
+  play5sRate: 0,
+  costPerformancePlay5s: 0,
+  photoThruPlayCnt: 0,
+  costPhotoThruPlay: 0,
+  photoThruPlayRate: 0,
+  photo25percentPlayCnt: 0,
+  costPhoto25percentPlay: 0,
+  photo25percentPlayRate: 0,
+  photo50percentPlayCnt: 0,
+  costPhoto50percentPlay: 0,
+  photo50percentPlayRate: 0,
+  photo75percentPlayCnt: 0,
+  costPhoto75percentPlay: 0,
+  photo75percentPlayRate: 0,
+  photoAvgPlayTime: 0,
+  purchase: 0,
+  purchaseRate: 0,
+  costPurchase: 0,
+  uniquePurchase: 0,
+  costUniquePurchase: 0,
+  totalDayOneRetention: 0,
+  costPerDayOneRetention: 0,
+  dayOneRetentionRate: 0,
+  totalDayOneRetentionPlatformAttribution: 0,
+  costPerDayOneRetentionPlatformAttribution: 0,
+  dayOneRetentionRatePlatformAttribution: 0,
+  keyInAppAction: 0,
+  costKeyInAppAction: 0,
+  uniqueKeyInAppAction: 0,
+  costUniqueKeyInAppAction: 0,
+  firstAdViewCnt: 0,
+  costFirstAdView: 0,
+  firstAdViewRate: 0,
+  firstAdClickCnt: 0,
+  costFirstAdClick: 0,
+  firstAdClickRate: 0,
+  adView: 0,
+  costAdView: 0,
+  adViewRate: 0,
+  adClick: 0,
+  costAdClick: 0,
+  adClickRate: 0,
+  uniquePageView: 0,
+  costUniquePageView: 0,
+  firstPageViewRate: 0,
+  uniqueAppLaunch: 0,
+  costUniqueAppLaunch: 0,
+  firstReengageRate: 0,
+  brandExposure: 0,
+  brandClick: 0,
+  brandPlayFinished: 0,
+  brandJumpClick: 0,
+  brandPlay3sCnt: 0,
+  brandPlay5sCnt: 0
+};
 
 module.exports = {
   obterCampanhas,

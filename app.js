@@ -8,6 +8,14 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'Access-Token']
 }));
 
+// // Permitindo acesso de qualquer origem pra lambda
+// app.use((req, res, next) => {
+//   res.header("Access-Control-Allow-Origin", "*");
+//   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+//   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, Access-Token");
+//   next();
+// });
+
 const authRoutes = require('./routes/authRoutes');
 const dashRoutes = require('./routes/dashRoutes');
 const contasRoutes = require('./routes/contasRoutes');
@@ -57,7 +65,6 @@ app.use((err, req, res, next) => {
       message: `Invalid ${err.kind}: ${err.value}`
     });
   } else {
-    console.log("!!!!!!!!!!!!!!", err)
     const simpleMessage = parseErrorMessage(err);
     res.status(500).json({ message: 'Internal server error', error: simpleMessage });
   }

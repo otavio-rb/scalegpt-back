@@ -2,16 +2,14 @@ const path = require('path');
 const slsw = require('serverless-webpack');
 const nodeExternals = require('webpack-node-externals');
 
-const isOffline = process.env.IS_OFFLINE === 'true'; // Verifica se está rodando offline
-
 module.exports = {
+    context: __dirname,
     entry: slsw.lib.entries,
     target: 'node',
-    // Define o modo baseado no ambiente, default é 'production'
-    mode: isOffline ? 'development' : (process.env.NODE_ENV || 'production'),
-    externals: [nodeExternals()],
+    mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
+    externals: [nodeExternals()], // Evita empacotar os node_modules
     output: {
-        libraryTarget: 'commonjs',
+        libraryTarget: 'commonjs2',
         path: path.join(__dirname, '.webpack'),
         filename: '[name].js',
     },
@@ -19,21 +17,14 @@ module.exports = {
         rules: [
             {
                 test: /\.js$/,
-                exclude: /node_modules/,
                 use: {
                     loader: 'babel-loader',
                     options: {
                         presets: ['@babel/preset-env']
                     }
-                }
-            }
-        ]
+                },
+                exclude: /node_modules/,
+            },
+        ],
     },
-    // Inclui plugins adicionais apenas se não estiver offline
-    ...(isOffline ? {} : {
-        plugins: [
-            // Plugins que você deseja adicionar apenas em produção ou testes online
-            // Exemplo: new CleanWebpackPlugin(),
-        ]
-    }),
 };

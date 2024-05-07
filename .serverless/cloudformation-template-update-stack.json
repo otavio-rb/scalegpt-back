@@ -74,7 +74,7 @@
     "AppLogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
-        "LogGroupName": "/aws/lambda/scalegpt-back-api-dev-app"
+        "LogGroupName": "/aws/lambda/scalegpt-back-api-prod-app"
       }
     },
     "IamRoleLambdaExecution": {
@@ -103,7 +103,7 @@
                 "-",
                 [
                   "scalegpt-back-api",
-                  "dev",
+                  "prod",
                   "lambda"
                 ]
               ]
@@ -120,7 +120,7 @@
                   ],
                   "Resource": [
                     {
-                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/scalegpt-back-api-dev*:*"
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/scalegpt-back-api-prod*:*"
                     }
                   ]
                 },
@@ -131,7 +131,7 @@
                   ],
                   "Resource": [
                     {
-                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/scalegpt-back-api-dev*:*:*"
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/scalegpt-back-api-prod*:*:*"
                     }
                   ]
                 }
@@ -145,7 +145,7 @@
             "-",
             [
               "scalegpt-back-api",
-              "dev",
+              "prod",
               {
                 "Ref": "AWS::Region"
               },
@@ -162,22 +162,23 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/scalegpt-back-api/dev/1714431631658-2024-04-29T23:00:31.658Z/app.zip"
+          "S3Key": "serverless/scalegpt-back-api/prod/1714954551047-2024-05-06T00:15:51.047Z/app.zip"
         },
         "Handler": "index.handler",
-        "Runtime": "nodejs20.x",
-        "FunctionName": "scalegpt-back-api-dev-app",
+        "Runtime": "nodejs18.x",
+        "FunctionName": "scalegpt-back-api-prod-app",
         "MemorySize": 1024,
         "Timeout": 30,
         "Environment": {
           "Variables": {
-            "MONGODB_URI": "mongodb://root:example@0.tcp.sa.ngrok.io:15157/test?authSource=admin",
+            "MONGODB_URI": "mongodb://mongouser:Hxv6DS%26ZhY4prM@ec2-54-227-72-167.compute-1.amazonaws.com:27017/local?authSource=admin",
             "REFRESH_TOKEN": "18339d93-49f7-4326-a498-70f35f2e0695",
             "ACCESS_TOKEN": "7e9ff4c4-954e-4a03-931c-5de8c8b22977",
             "CLIENT_ID": "tmM2YXmM",
             "SECRET_KEY": "11f8a63f2ad33b98dbd95d42d4fb70fe8f3d37f1",
             "CORP_ID": "1005",
-            "JWT_SECRET": "2139128312938123"
+            "JWT_SECRET": "2139128312938123",
+            "NODE_ENV": "production"
           }
         },
         "Role": {
@@ -191,20 +192,20 @@
         "AppLogGroup"
       ]
     },
-    "AppLambdaVersion9FefB96bHrZy1H98f79UrMvD9vjOXi3NoQE6Dx5d0": {
+    "AppLambdaVersionZX7xCQMtsMrozVyCmd2P1ceeUjlvzSJ2Mw0v3hTYGI": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
         "FunctionName": {
           "Ref": "AppLambdaFunction"
         },
-        "CodeSha256": "jwMoPV22MmQmDm2+nBy4/hGxxlsVlY/JFCnrcvtnoEI="
+        "CodeSha256": "6l5XiGwSm334oJ2TLHwgFu7rW8upVd79krkqAuNwhlo="
       }
     },
     "ApiGatewayRestApi": {
       "Type": "AWS::ApiGateway::RestApi",
       "Properties": {
-        "Name": "dev-scalegpt-back-api",
+        "Name": "prod-scalegpt-back-api",
         "EndpointConfiguration": {
           "Types": [
             "EDGE"
@@ -223,6 +224,99 @@
           ]
         },
         "PathPart": "{proxy+}",
+        "RestApiId": {
+          "Ref": "ApiGatewayRestApi"
+        }
+      }
+    },
+    "ApiGatewayMethodOptions": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "MethodResponses": [
+          {
+            "StatusCode": "200",
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Origin": true,
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true
+            },
+            "ResponseModels": {}
+          }
+        ],
+        "RequestParameters": {},
+        "Integration": {
+          "Type": "MOCK",
+          "RequestTemplates": {
+            "application/json": "{statusCode:200}"
+          },
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,Access-Token,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,Referer,Accept'",
+                "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,POST,PUT,PATCH,DELETE,DELETE,GET,HEAD,PATCH,POST,PUT'"
+              },
+              "ResponseTemplates": {
+                "application/json": ""
+              }
+            }
+          ]
+        },
+        "ResourceId": {
+          "Fn::GetAtt": [
+            "ApiGatewayRestApi",
+            "RootResourceId"
+          ]
+        },
+        "RestApiId": {
+          "Ref": "ApiGatewayRestApi"
+        }
+      }
+    },
+    "ApiGatewayMethodProxyVarOptions": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "MethodResponses": [
+          {
+            "StatusCode": "200",
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Origin": true,
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true
+            },
+            "ResponseModels": {}
+          }
+        ],
+        "RequestParameters": {},
+        "Integration": {
+          "Type": "MOCK",
+          "RequestTemplates": {
+            "application/json": "{statusCode:200}"
+          },
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,Access-Token,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,Referer,Accept'",
+                "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,POST,PUT,PATCH,DELETE,DELETE,GET,HEAD,PATCH,POST,PUT'"
+              },
+              "ResponseTemplates": {
+                "application/json": ""
+              }
+            }
+          ]
+        },
+        "ResourceId": {
+          "Ref": "ApiGatewayResourceProxyVar"
+        },
         "RestApiId": {
           "Ref": "ApiGatewayRestApi"
         }
@@ -323,15 +417,17 @@
         "AppLambdaPermissionApiGateway"
       ]
     },
-    "ApiGatewayDeployment1714431627303": {
+    "ApiGatewayDeployment1714954539480": {
       "Type": "AWS::ApiGateway::Deployment",
       "Properties": {
         "RestApiId": {
           "Ref": "ApiGatewayRestApi"
         },
-        "StageName": "dev"
+        "StageName": "prod"
       },
       "DependsOn": [
+        "ApiGatewayMethodOptions",
+        "ApiGatewayMethodProxyVarOptions",
         "ApiGatewayMethodAny",
         "ApiGatewayMethodProxyVarAny"
       ]
@@ -380,16 +476,16 @@
         "Ref": "ServerlessDeploymentBucket"
       },
       "Export": {
-        "Name": "sls-scalegpt-back-api-dev-ServerlessDeploymentBucketName"
+        "Name": "sls-scalegpt-back-api-prod-ServerlessDeploymentBucketName"
       }
     },
     "AppLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "AppLambdaVersion9FefB96bHrZy1H98f79UrMvD9vjOXi3NoQE6Dx5d0"
+        "Ref": "AppLambdaVersionZX7xCQMtsMrozVyCmd2P1ceeUjlvzSJ2Mw0v3hTYGI"
       },
       "Export": {
-        "Name": "sls-scalegpt-back-api-dev-AppLambdaFunctionQualifiedArn"
+        "Name": "sls-scalegpt-back-api-prod-AppLambdaFunctionQualifiedArn"
       }
     },
     "ServiceEndpoint": {
@@ -410,12 +506,12 @@
             {
               "Ref": "AWS::URLSuffix"
             },
-            "/dev"
+            "/prod"
           ]
         ]
       },
       "Export": {
-        "Name": "sls-scalegpt-back-api-dev-ServiceEndpoint"
+        "Name": "sls-scalegpt-back-api-prod-ServiceEndpoint"
       }
     }
   }

@@ -40,6 +40,10 @@ const campaignSchema = new mongoose.Schema({
     minlength: 3,
     maxlength: 255,
   },
+  campaignId: {
+    type: Number,
+    required: false,
+  }
 });
 
 campaignSchema.statics.joiSchema = Joi.object({
