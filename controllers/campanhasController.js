@@ -239,7 +239,7 @@ async function atualizarAccessToken() {
 
 async function obterCampanhas(req, res, next) {
   const userId = req.user._id;
-  const { contaId, granularity, dataBeginTime, dataEndTime, timeZoneIana, pageNo, pageSize } = req.body;
+  const { contaId, granularity, timeZoneIana, pageNo, pageSize, search, status } = req.body;
   const timestampBegin = toTimestampBR(req.body.dataBeginTime);
   const timestampEnd = toTimestampBR(req.body.dataEndTime);
 
@@ -253,58 +253,54 @@ async function obterCampanhas(req, res, next) {
   }
 
   try {
-    const response = await obterDadosCompletosCampanhas(contaId, timestampBegin, timestampEnd, granularity, timeZoneIana, pageNo, pageSize);
+    const response = await obterDadosCompletosCampanhas(contaId, timestampBegin, timestampEnd, granularity, timeZoneIana, pageNo, pageSize, search, status);
     res.json(response);
   } catch (error) {
     next(res)
   }
 }
 
-async function obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize) {
+async function obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize, search, status = 1) {
   let totalCampanhas = [];
   const adCategory = 1;
 
   try {
-    while (true) {
-      const params = {
-        adCategory,
-        granularity,
-        dataBeginTime,
-        dataEndTime,
-        timeZoneIana,
-        accountId,
-        corpId,
-        pageNo,
-        pageSize
-      };
+    const params = {
+      adCategory,
+      granularity,
+      dataBeginTime,
+      dataEndTime,
+      timeZoneIana,
+      accountId,
+      campaignIdList: search ? [parseInt(search)] : null,
+      status,
+      corpId,
+      pageNo,
+      pageSize
+    };
 
-      const response = await axios.post(
-        'https://developers.kwai.com/rest/n/mapi/campaign/dspCampaignPageQueryPerformance',
-        params,
-        {
-          headers: {
-            'Access-Token': accessToken,
-            'Content-Type': 'application/json',
-          },
-          timeout: 10000 // 10 segundos de timeout
-        }
-      );
-
-      if (response.data.status === 200) {
-        const campaigns = response.data.data.data;
-        totalCampanhas = totalCampanhas.concat(campaigns);
-        if (response.data.data.total <= pageNo * pageSize) {
-          break; // Sai do laço se a última página foi alcançada
-        }
-        pageNo++;
-      } else if (response.data.status === 401) {
-        await atualizarAccessToken();
-        continue;
-      } else {
-        throw new Error(`Erro ao obter campanhas: ${response.data.message}`);
+    const response = await axios.post(
+      'https://developers.kwai.com/rest/n/mapi/campaign/dspCampaignPageQueryPerformance',
+      params,
+      {
+        headers: {
+          'Access-Token': accessToken,
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000 // 10 segundos de timeout
       }
+    );
+
+    if (response.data.status === 200) {
+      const campaigns = response.data.data.data;
+      // totalCampanhas = totalCampanhas.concat(campaigns);
+    } else if (response.data.status === 401) {
+      await atualizarAccessToken();
+      return obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize, search, status);
+    } else {
+      throw new Error(`Erro ao obter campanhas: ${response.data.message}`);
     }
-    return totalCampanhas;
+    return {"campaigns": campaigns, "total": response.data.data.total};
 
   } catch (error) {
     console.error(error);
@@ -313,6 +309,11 @@ async function obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, gran
 }
 
 async function saveCampanhas(campanhasValidas) {
+  if (!campanhasValidas.length) {
+    console.log('Nenhuma campanha válida para inserir.');
+    return; // Sai da função se não há campanhas válidas
+  }
+
   try {
     const db = mongoose.connection;
     
@@ -344,7 +345,9 @@ async function saveCampanhas(campanhasValidas) {
   }
 }
 
+
 async function obterMetricasCampanha(params) {
+  params.pageSize = 100;
   try {
     const response = await axios.post(
       'https://developers.kwai.com/rest/n/mapi/report/dspCampaignEffectQuery',
@@ -373,35 +376,71 @@ async function obterMetricasCampanha(params) {
   }
 }
 
-async function obterDadosCompletosCampanhas(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize) {
+async function obterDadosCompletosCampanhas(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize, search, status) {
   try {
-    const campanhas = await obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize);
-    const metricasPromises = campanhas.map(campaign => {
-      const params = {
-        "accountId": campaign.accountId,
-        "campaignId": campaign.campaignId,
-        "dataBeginTime": dataBeginTime,
-        "dataEndTime": dataEndTime,
-        "timeZoneIana": timeZoneIana,
-        "adCategory": campaign.adCategory,
-        "pageNo": 1,
-        "pageSize": 10,
-        "granularity": 1
-      };
-      return obterMetricasCampanha(params).catch(() => null); 
-    });
-
-    const metricasResultados = await Promise.all(metricasPromises);
-    const dadosCompletos = campanhas.map(campaign => {
+    console.log('Início da função obterDadosCompletosCampanhas');
+    console.log('Obtendo campanhas por data');
+    const campanhas = await obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize, search, status);
+    console.log('campanhas obtidas:', campanhas.length);
+    const params = {
+      "adCategory": 1,
+      "granularity": granularity,
+      "dataBeginTime": dataBeginTime,
+      "dataEndTime": dataEndTime,
+      "timeZoneIana": timeZoneIana,
+      "adCategory": 1,
+      "pageNo": pageNo,
+      "pageSize": pageSize
+    };
+    const metricasResultados = await obterMetricasCampanha(params);
+    console.log('Métricas processadas para todas as campanhas');
+    const dadosCompletos = campanhas.campaigns.map(campaign => {
       const metricas = metricasResultados.find(m => m && m.campaignId === campaign.campaignId) || metricasPadrao;
       return { ...campaign, ...metricas };
     });
-    console.log(dadosCompletos)
+
+    return {
+      totalItems: campanhas.total,
+      currentPage: pageNo,
+      totalPages: Math.ceil(campanhas.total / pageSize),
+      data: dadosCompletos,
+    };
     await saveCampanhas(dadosCompletos);
     return getCampaigns(pageNo, pageSize);
   } catch (error) {
     console.error('Erro ao obter dados completos das campanhas', error);
     throw error;
+  }
+}
+
+async function campaignSearch(search, pageNo = 1, pageSize = 10, status = 1) {
+  try {
+    const db = mongoose.connection;
+    const collection = db.collection('campaign_all');
+
+    // Construa uma consulta básica sem usar índices de texto
+    // Utiliza uma expressão regular para fazer uma busca 'contém' no campo 'campaignName'
+    const query = {
+      campaignName: { $regex: search, $options: 'i' }, // '$options: 'i'' para busca case-insensitive
+      status: status // Assume que status é um campo numérico
+    };
+
+    const totalItems = await collection.countDocuments(query);
+    const skip = (pageNo - 1) * pageSize;
+    const campaigns = await collection.find(query)
+      .skip(skip)
+      .limit(pageSize)
+      .toArray();
+
+    return {
+      totalItems,
+      currentPage: pageNo,
+      totalPages: Math.ceil(totalItems / pageSize),
+      campaigns
+    };
+  } catch (error) {
+      console.log|(error)
+      throw error;
   }
 }
 
@@ -417,10 +456,10 @@ async function getCampaigns(pageNo = 1, pageSize = 10) {
       .toArray();
 
     return {
-      campaigns,
       totalItems,
       currentPage: pageNo,
-      totalPages: Math.ceil(totalItems / pageSize)
+      totalPages: Math.ceil(totalItems / pageSize),
+      campaigns
     };
   } catch (error) {
     console.error('Erro ao buscar campanhas:', error);

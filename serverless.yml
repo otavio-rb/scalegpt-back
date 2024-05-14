@@ -2,8 +2,9 @@ service: scalegpt-back-api
 
 provider:
   name: aws
+  deploymentMethod: direct
   runtime: nodejs18.x
-  stage: prod
+  stage: production
   region: us-east-1
   environment:
     MONGODB_URI: mongodb://mongouser:Hxv6DS%26ZhY4prM@ec2-54-227-72-167.compute-1.amazonaws.com:27017/local?authSource=admin

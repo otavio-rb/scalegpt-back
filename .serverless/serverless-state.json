@@ -6,8 +6,9 @@
     },
     "provider": {
       "name": "aws",
+      "deploymentMethod": "direct",
       "runtime": "nodejs18.x",
-      "stage": "prod",
+      "stage": "production",
       "region": "us-east-1",
       "environment": {
         "MONGODB_URI": "mongodb://mongouser:Hxv6DS%26ZhY4prM@ec2-54-227-72-167.compute-1.amazonaws.com:27017/local?authSource=admin",
@@ -96,7 +97,7 @@
           "AppLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/scalegpt-back-api-prod-app"
+              "LogGroupName": "/aws/lambda/scalegpt-back-api-production-app"
             }
           },
           "IamRoleLambdaExecution": {
@@ -125,7 +126,7 @@
                       "-",
                       [
                         "scalegpt-back-api",
-                        "prod",
+                        "production",
                         "lambda"
                       ]
                     ]
@@ -142,7 +143,7 @@
                         ],
                         "Resource": [
                           {
-                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/scalegpt-back-api-prod*:*"
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/scalegpt-back-api-production*:*"
                           }
                         ]
                       },
@@ -153,7 +154,7 @@
                         ],
                         "Resource": [
                           {
-                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/scalegpt-back-api-prod*:*:*"
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/scalegpt-back-api-production*:*:*"
                           }
                         ]
                       }
@@ -167,7 +168,7 @@
                   "-",
                   [
                     "scalegpt-back-api",
-                    "prod",
+                    "production",
                     {
                       "Ref": "AWS::Region"
                     },
@@ -184,11 +185,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/scalegpt-back-api/prod/1714954551047-2024-05-06T00:15:51.047Z/app.zip"
+                "S3Key": "serverless/scalegpt-back-api/production/1715656905151-2024-05-14T03:21:45.151Z/app.zip"
               },
               "Handler": "index.handler",
               "Runtime": "nodejs18.x",
-              "FunctionName": "scalegpt-back-api-prod-app",
+              "FunctionName": "scalegpt-back-api-production-app",
               "MemorySize": 1024,
               "Timeout": 30,
               "Environment": {
@@ -214,20 +215,20 @@
               "AppLogGroup"
             ]
           },
-          "AppLambdaVersionZX7xCQMtsMrozVyCmd2P1ceeUjlvzSJ2Mw0v3hTYGI": {
+          "AppLambdaVersiongMh2YD8yHmH3FG6o9adyVIf98jhmDIDHq4rSCClI88k": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "AppLambdaFunction"
               },
-              "CodeSha256": "6l5XiGwSm334oJ2TLHwgFu7rW8upVd79krkqAuNwhlo="
+              "CodeSha256": "LdNq5tXHmiZ9zVjI1+0Uf1d8iTrZqcXR2o+/vk/mBe4="
             }
           },
           "ApiGatewayRestApi": {
             "Type": "AWS::ApiGateway::RestApi",
             "Properties": {
-              "Name": "prod-scalegpt-back-api",
+              "Name": "production-scalegpt-back-api",
               "EndpointConfiguration": {
                 "Types": [
                   "EDGE"
@@ -439,13 +440,13 @@
               "AppLambdaPermissionApiGateway"
             ]
           },
-          "ApiGatewayDeployment1714954539480": {
+          "ApiGatewayDeployment1715656871961": {
             "Type": "AWS::ApiGateway::Deployment",
             "Properties": {
               "RestApiId": {
                 "Ref": "ApiGatewayRestApi"
               },
-              "StageName": "prod"
+              "StageName": "production"
             },
             "DependsOn": [
               "ApiGatewayMethodOptions",
@@ -498,16 +499,16 @@
               "Ref": "ServerlessDeploymentBucket"
             },
             "Export": {
-              "Name": "sls-scalegpt-back-api-prod-ServerlessDeploymentBucketName"
+              "Name": "sls-scalegpt-back-api-production-ServerlessDeploymentBucketName"
             }
           },
           "AppLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "AppLambdaVersionZX7xCQMtsMrozVyCmd2P1ceeUjlvzSJ2Mw0v3hTYGI"
+              "Ref": "AppLambdaVersiongMh2YD8yHmH3FG6o9adyVIf98jhmDIDHq4rSCClI88k"
             },
             "Export": {
-              "Name": "sls-scalegpt-back-api-prod-AppLambdaFunctionQualifiedArn"
+              "Name": "sls-scalegpt-back-api-production-AppLambdaFunctionQualifiedArn"
             }
           },
           "ServiceEndpoint": {
@@ -528,12 +529,12 @@
                   {
                     "Ref": "AWS::URLSuffix"
                   },
-                  "/prod"
+                  "/production"
                 ]
               ]
             },
             "Export": {
-              "Name": "sls-scalegpt-back-api-prod-ServiceEndpoint"
+              "Name": "sls-scalegpt-back-api-production-ServiceEndpoint"
             }
           }
         }
@@ -706,14 +707,14 @@
             }
           }
         ],
-        "name": "scalegpt-back-api-prod-app",
+        "name": "scalegpt-back-api-production-app",
         "package": {
           "artifact": ".serverless/app.zip"
         },
         "memory": 1024,
         "runtime": "nodejs18.x",
         "vpc": {},
-        "versionLogicalId": "AppLambdaVersionZX7xCQMtsMrozVyCmd2P1ceeUjlvzSJ2Mw0v3hTYGI"
+        "versionLogicalId": "AppLambdaVersiongMh2YD8yHmH3FG6o9adyVIf98jhmDIDHq4rSCClI88k"
       }
     },
     "configValidationMode": "warn",
@@ -728,8 +729,8 @@
       },
       "package": {
         "individually": true,
-        "artifactsS3KeyDirname": "serverless/scalegpt-back-api/prod/code-artifacts",
-        "artifactDirectoryName": "serverless/scalegpt-back-api/prod/1714954551047-2024-05-06T00:15:51.047Z"
+        "artifactsS3KeyDirname": "serverless/scalegpt-back-api/production/code-artifacts",
+        "artifactDirectoryName": "serverless/scalegpt-back-api/production/1715656905151-2024-05-14T03:21:45.151Z"
       },
       "functions": {
         "$ref": "$[\"service\"][\"functions\"]"
@@ -743,7 +744,7 @@
   },
   "package": {
     "individually": true,
-    "artifactDirectoryName": "serverless/scalegpt-back-api/prod/1714954551047-2024-05-06T00:15:51.047Z",
+    "artifactDirectoryName": "serverless/scalegpt-back-api/production/1715656905151-2024-05-14T03:21:45.151Z",
     "artifact": ""
   }
 }

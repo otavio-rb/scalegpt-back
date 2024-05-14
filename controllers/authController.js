@@ -83,6 +83,32 @@ async function me(req, res) {
       res.status(500).send({ message: 'Erro ao buscar os dados do usuário.' });
   }
 }
+// async function resetPassword(req, res) {
+//   try {
+//     const { new_password } = req.body;
+//     const userId = req.user._id;  
+
+//     // Encontrar o usuário pelo ID
+//     const usuario = await Usuario.findById(userId);
+
+//     if (!usuario) {
+//       return res.status(404).json({ error: 'Usuário não encontrado.' });
+//     }
+
+//     // Gerar um hash da nova senha
+//     const salt = await bcrypt.genSalt(10);
+//     const hashedPassword = await bcrypt.hash(new_password, salt);
+
+//     // Atualizar a senha do usuário
+//     usuario.password = hashedPassword;
+//     await usuario.save();
+
+//     res.json({ message: 'Senha resetada com sucesso.' });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ error: 'Erro ao resetar a senha.' });
+//   }
+// }
 
 module.exports = {
     login,
