@@ -292,7 +292,7 @@ async function obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, gran
     );
 
     if (response.data.status === 200) {
-      const campaigns = response.data.data.data;
+      return {"campaigns": response.data.data.data, "total": response.data.data.total};
       // totalCampanhas = totalCampanhas.concat(campaigns);
     } else if (response.data.status === 401) {
       await atualizarAccessToken();
@@ -300,7 +300,6 @@ async function obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, gran
     } else {
       throw new Error(`Erro ao obter campanhas: ${response.data.message}`);
     }
-    return {"campaigns": campaigns, "total": response.data.data.total};
 
   } catch (error) {
     console.error(error);
