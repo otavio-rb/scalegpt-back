@@ -12,9 +12,11 @@ const corpId = process.env.CORP_ID;
 
 async function obterAnuncios(req, res, next) {
   const userId = req.user._id;
-  const { contaId, granularity, timeZoneIana, pageNo, pageSize, search, status } = req.body;
+  const { contaId, granularity, timeZoneIana, pageNo, pageSize } = req.body;
   const timestampBegin = toTimestampBR(req.body.dataBeginTime);
   const timestampEnd = toTimestampBR(req.body.dataEndTime);
+  const status = req.body?.status;
+  const search = req.body?.search;
 
   const usuario = await Usuario.findById(userId);
   if (!usuario.contasVinculadas || usuario.contasVinculadas.length === 0) {
@@ -80,13 +82,16 @@ async function obterAnuncioPorData(accountId, dataBeginTime, dataEndTime, granul
       dataBeginTime,
       dataEndTime,
       timeZoneIana,
-      status: status,
       creativeIdList: search ? [parseInt(search)] : null,
       accountId,
       corpId,
       pageNo,
-      pageSize: 100
+      pageSize
     };
+
+    if (status !== undefined && status !== null && status !== '') {
+      params.status = status;
+    }
 
     const response = await axios.post(
       'https://developers.kwai.com/rest/n/mapi/creative/dspCreativePageQueryPerformance',

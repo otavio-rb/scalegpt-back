@@ -239,9 +239,11 @@ async function atualizarAccessToken() {
 
 async function obterCampanhas(req, res, next) {
   const userId = req.user._id;
-  const { contaId, granularity, timeZoneIana, pageNo, pageSize, search, status } = req.body;
+  const { contaId, granularity, timeZoneIana, pageNo, pageSize } = req.body;
   const timestampBegin = toTimestampBR(req.body.dataBeginTime);
   const timestampEnd = toTimestampBR(req.body.dataEndTime);
+  const status = req.body?.status;
+  const search = req.body?.search;
 
   const usuario = await Usuario.findById(userId);
   if (!usuario.contasVinculadas || usuario.contasVinculadas.length === 0) {
@@ -256,12 +258,11 @@ async function obterCampanhas(req, res, next) {
     const response = await obterDadosCompletosCampanhas(contaId, timestampBegin, timestampEnd, granularity, timeZoneIana, pageNo, pageSize, search, status);
     res.json(response);
   } catch (error) {
-    next(res)
+    next(error)
   }
 }
 
-async function obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize, search, status = 1) {
-  let totalCampanhas = [];
+async function obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize, search, status) {
   const adCategory = 1;
 
   try {
@@ -273,11 +274,14 @@ async function obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, gran
       timeZoneIana,
       accountId,
       campaignIdList: search ? [parseInt(search)] : null,
-      status,
       corpId,
       pageNo,
       pageSize
     };
+
+    if (status !== undefined && status !== null && status !== '') {
+      params.status = status;
+    }
 
     const response = await axios.post(
       'https://developers.kwai.com/rest/n/mapi/campaign/dspCampaignPageQueryPerformance',
@@ -293,12 +297,11 @@ async function obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, gran
 
     if (response.data.status === 200) {
       return {"campaigns": response.data.data.data, "total": response.data.data.total};
-      // totalCampanhas = totalCampanhas.concat(campaigns);
     } else if (response.data.status === 401) {
       await atualizarAccessToken();
       return obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize, search, status);
     } else {
-      throw new Error(`Erro ao obter campanhas: ${response.data.message}`);
+      throw error;
     }
 
   } catch (error) {
@@ -360,7 +363,6 @@ async function obterMetricasCampanha(params) {
     );
 
     if (response.data.status === 200 && response.data.data.total > 0) {
-      console.log('')
       return response;
     } else if (response.data.status === 401) {
       await atualizarAccessToken();

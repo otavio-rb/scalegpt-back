@@ -11,9 +11,11 @@ const corpId = process.env.CORP_ID;
 
 async function obterConjuntosAnuncio(req, res, next) {
   const userId = req.user._id;
-  const { contaId, granularity, timeZoneIana, pageNo, pageSize, search, status } = req.body;
+  const { contaId, granularity, timeZoneIana, pageNo, pageSize } = req.body;
   const timestampBegin = toTimestampBR(req.body.dataBeginTime);
   const timestampEnd = toTimestampBR(req.body.dataEndTime);
+  const status = req.body?.status;
+  const search = req.body?.search;
 
   const usuario = await Usuario.findById(userId);
   if (!usuario.contasVinculadas || usuario.contasVinculadas.length === 0) {
@@ -39,6 +41,7 @@ async function obterDadosCompletosConjuntosAnuncio(accountId, dataBeginTime, dat
     const ConjuntoAnuncios = await obterConjuntosAnuncioPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize, status);
     console.log('Conjuntos de anúncios obtidos:', ConjuntoAnuncios.length);
     const params = {
+      "accountId": accountId,
       "adCategory": 1,
       "granularity": granularity,
       "dataBeginTime": dataBeginTime,
@@ -49,10 +52,10 @@ async function obterDadosCompletosConjuntosAnuncio(accountId, dataBeginTime, dat
       "pageSize": pageSize
     };
     const metricasResultados = await obterMetricasConjuntoAnuncio(params);
-    console.log('Métricas processadas para todos os conjuntos de anúncios');
-    const dadosCompletos = ConjuntoAnuncios.adSets.map(adSet => {
-      const metricas = metricasResultados.find(m => m && m.adSetId === adSet.adSetId) || metricasPadrao;
-      return { ...adSet, ...metricas };
+    console.log('Retorno Metricas', metricasResultados.length);
+    const dadosCompletos = ConjuntoAnuncios.adSets.map(ConjuntoAnuncios => {
+      const metricas = metricasResultados.find(m => m && m.campaignId === ConjuntoAnuncios.campaignId && m.unitId === ConjuntoAnuncios.unitId) || metricasPadrao;
+      return { ...ConjuntoAnuncios, ...metricas };
     });
     return {
       totalItems: ConjuntoAnuncios.total,
@@ -60,7 +63,6 @@ async function obterDadosCompletosConjuntosAnuncio(accountId, dataBeginTime, dat
       totalPages: Math.ceil(ConjuntoAnuncios.total / pageSize),
       data: dadosCompletos,
     };
-    console.log('dadosCompletos', dadosCompletos)
     await saveConjuntoAnuncios(dadosCompletos, pageNo);
     return getAdSets(pageNo, pageSize);
   } catch (error) {
@@ -74,40 +76,44 @@ async function obterConjuntosAnuncioPorData(accountId, dataBeginTime, dataEndTim
   const adCategory = 1;
 
   try {
-      const params = {
-        adCategory,
-        granularity,
-        dataBeginTime,
-        dataEndTime,
-        timeZoneIana,
-        status,
-        accountId,
-        corpId,
-        pageNo,
-        pageSize
-      };
-      const response = await axios.post(
-        'https://developers.kwai.com/rest/n/mapi/unit/dspUnitPageQueryPerformance',
-        params,
-        {
-          headers: {
-            'Access-Token': accessToken,
-            'Content-Type': 'application/json',
-          },
-          timeout: 10000 // 10 segundos de timeout
-        }
-      );
+    const params = {
+      adCategory,
+      granularity,
+      dataBeginTime,
+      dataEndTime,
+      timeZoneIana,
+      accountId,
+      corpId,
+      pageNo,
+      pageSize
+    };
 
-      if (response.data.status === 200) {
-        const adSets = response.data.data.data;
-        totalConjuntoAnuncio = totalConjuntoAnuncio.concat(adSets);
-      } else if (response.data.status === 401) {
-        await atualizarAccessToken();
-        return obterConjuntosAnuncioPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize, status);
-      } else {
-        throw new Error(`Erro ao obter conjuntoAnuncio: ${response.data.message}`);
+    if (status !== undefined && status !== null && status !== '') {
+      params.status = status;
+    }
+
+    const response = await axios.post(
+      'https://developers.kwai.com/rest/n/mapi/unit/dspUnitPageQueryPerformance',
+      params,
+      {
+        headers: {
+          'Access-Token': accessToken,
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000 // 10 segundos de timeout
       }
-    return {"adSets": totalConjuntoAnuncio, "total": response.data.data.total};
+    );
+
+    if (response.data.status === 200) {
+      const adSets = response.data.data.data;
+      totalConjuntoAnuncio = totalConjuntoAnuncio.concat(adSets);
+    } else if (response.data.status === 401) {
+      await atualizarAccessToken();
+      return obterConjuntosAnuncioPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize, status);
+    } else {
+      throw new Error(`Erro ao obter conjuntoAnuncio: ${response.data.message}`);
+    }
+    return { "adSets": totalConjuntoAnuncio, "total": response.data.data.total };
 
   } catch (error) {
     console.error(error);
@@ -149,9 +155,10 @@ async function obterMetricasConjuntoAnuncio(params) {
         },
       }
     );
+    console.log("AAAAAAAAAAAAAAAAAA", response.data.data.total)
     // console.log('obterMetricasConjuntoAnuncio', response.data.data)
     if (response.data.status === 200 && response.data.data.total > 0) {
-      return response;
+      return response.data.data.data;
     } else if (response.data.status === 401) {
       await atualizarAccessToken();
       return obterMetricasConjuntoAnuncio(params);

@@ -1,9 +1,9 @@
 service: scalegpt-back-api
+frameworkVersion: "3"
 
 provider:
   name: aws
-  deploymentMethod: direct
-  runtime: nodejs18.x
+  runtime: nodejs20.x
   stage: production
   region: us-east-1
   environment:
@@ -17,17 +17,19 @@ provider:
     NODE_ENV: production
 
 plugins:
-  - serverless-webpack
+  # - serverless-webpack
   - serverless-offline
   - serverless-dotenv-plugin
 
-package:
-  individually: true 
+# package:
+#   individually: true 
   
 functions:
   app:
     handler: index.handler
     timeout: 30 #seconds
+    layers:
+    - arn:aws:lambda:us-east-1:756934032722:layer:node_modules:6
     events:
       - http:
           path: /
@@ -71,17 +73,9 @@ functions:
               - PUT
               - PATCH
               - DELETE
-    # patterns:
-    # - '!node_modules/**'
-    # - '!test/**'
-    # - 'handler.js'
-    # - 'libs/**'
 
 custom:
   dotenv:
     path: ./.env
   serverless-offline:
     httpPort: 3000
-  webpack:
-    webpackConfig: './webpack.config.js'  # Caminho para o arquivo de configuração do webpack
-    includeModules: true  # Para incluir node_modules no bundle, se necessário
