@@ -1,50 +1,81 @@
-service: scalegpt-back
+service: scalegpt-back-api
+frameworkVersion: "3"
 
 provider:
   name: aws
-  runtime: nodejs18.x
-  stage: dev
+  runtime: nodejs20.x
+  stage: production
   region: us-east-1
   environment:
-    MONGODB_URI: 
-    REFRESH_TOKEN: 
-    ACCESS_TOKEN: 
-    CLIENT_ID: 
-    SECRET_KEY: 
-    CORP_ID: 
-    JWT_SECRET: 
+    MONGODB_URI: mongodb://mongouser:Hxv6DS%26ZhY4prM@ec2-54-227-72-167.compute-1.amazonaws.com:27017/local?authSource=admin
+    REFRESH_TOKEN: 18339d93-49f7-4326-a498-70f35f2e0695
+    ACCESS_TOKEN: 7e9ff4c4-954e-4a03-931c-5de8c8b22977
+    CLIENT_ID: tmM2YXmM
+    SECRET_KEY: 11f8a63f2ad33b98dbd95d42d4fb70fe8f3d37f1
+    CORP_ID: 1005
+    JWT_SECRET: 2139128312938123
+    NODE_ENV: production
 
 plugins:
+  # - serverless-webpack
   - serverless-offline
   - serverless-dotenv-plugin
-  # - serverless-openapi-documentation
-  # - serverless-aws-documentation
-  # - serverless-webpack
-package:
-  individually: true
-  exclude:
-    - test/**
+
+# package:
+#   individually: true 
+  
 functions:
   app:
     handler: index.handler
     timeout: 30 #seconds
+    layers:
+    - arn:aws:lambda:us-east-1:756934032722:layer:node_modules:6
     events:
       - http:
           path: /
           method: ANY
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - Access-Token
+              - Sec-Ch-Ua
+              - Sec-Ch-Ua-Mobile
+              - Sec-Ch-Ua-Platform
+              - Referer
+              - Accept
+            methods:
+              - OPTIONS
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
       - http:
           path: /{proxy+}
           method: ANY
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - Access-Token
+              - Sec-Ch-Ua
+              - Sec-Ch-Ua-Mobile
+              - Sec-Ch-Ua-Platform
+              - Referer
+              - Accept
+            methods:
+              - OPTIONS
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+
 custom:
-  # webpack:
-  #     webpackConfig: ./webpack.config.js
-  #     includeModules: true
   dotenv:
     path: ./.env
   serverless-offline:
     httpPort: 3000
-  # documentation:
-  #   version: '1.0.0'
-  #   title: 'API Serverless scalegpt-back'
-  #   description: 'Esta é a documentação API do meu projeto Serverless.'
-  #   models: ['models/*.js'] 

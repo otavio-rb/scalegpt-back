@@ -58,6 +58,8 @@ async function obterTotalGastoPorData(accountId, data) {
       corpId: corpId,
   };
 
+  console.log("obterTotalGastoPorData", params)
+
   try {
     const response = await axios.post(
       'https://developers.kwai.com/rest/n/mapi/report/dspAccountEffectQuery',
@@ -274,6 +276,8 @@ async function fetchDataForMonth(accountId, mesFormatado, mes) {
     accountId: accountId,
     corpId: corpId,
   };
+  console.log("fetchDataForMonth", params)
+
   try {
     const response = await axios.post(
       'https://developers.kwai.com/rest/n/mapi/report/dspAccountEffectQuery',

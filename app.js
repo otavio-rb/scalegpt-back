@@ -1,8 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const swaggerUi = require('swagger-ui-express');
-const YAML = require('yamljs');
-
 const app = express();
 app.use(express.json());
 app.use(cors({
@@ -10,6 +7,14 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Access-Token']
 }));
+
+// // Permitindo acesso de qualquer origem pra lambda
+// app.use((req, res, next) => {
+//   res.header("Access-Control-Allow-Origin", "*");
+//   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+//   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, Access-Token");
+//   next();
+// });
 
 const authRoutes = require('./routes/authRoutes');
 const dashRoutes = require('./routes/dashRoutes');
@@ -27,9 +32,43 @@ app.use('/campanhas', campanhasRoutes);
 app.use('/automacoes', automacaoRoutes);
 app.use('/anuncios', anunciosRoutes);
 
-// Swagger UI setup
-const swaggerDocument = YAML.load('./docs/openapi.yaml');
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+function parseErrorMessage(error) {
+  console.log('ERROR!!!!! ', error)
+  try {
+    const firstLevel = JSON.parse(error.message);
+    const secondLevel = JSON.parse(firstLevel.message);
+    let finalMessage = `${secondLevel.errorMessage}`;
+
+    if (secondLevel.detailMsg && secondLevel.detailMsg.length > 0) {
+      const details = secondLevel.detailMsg.map(detail => `${detail.errorMessage}`).join(', ');
+      finalMessage += ` - Details: ${details}`;
+    }
+
+    return finalMessage;
+  } catch (e) {
+    console.error('Erro ao analisar a mensagem de erro:', e);
+    return error.message;
+  }
+}
+
+// Middleware de Tratamento de Erros
+app.use((err, req, res, next) => {
+  if (err.name === 'ValidationError') {
+    const errors = Object.values(err.errors).map(e => ({
+      field: e.path,
+      message: e.message
+    }));
+    return res.status(400).json({ errors });
+  } else if (err.name === 'CastError') {
+    return res.status(400).json({
+      field: err.path,
+      message: `Invalid ${err.kind}: ${err.value}`
+    });
+  } else {
+    const simpleMessage = parseErrorMessage(err);
+    res.status(500).json({ message: 'Internal server error', error: simpleMessage });
+  }
+});
 
 // Handle 404
 app.use((req, res) => {

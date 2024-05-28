@@ -70,6 +70,21 @@ Você deverá receber uma resposta como:
 ```
 Com status 404, indicando que o endpoint específico não existe.
 
+
+
+## Deploy
+Para fazer deploy do serverless na aws, primeiramente você precisa configurar suas credenciais com comando:
+
+```bash
+aws configure
+```
+
+Em seguida pode fazer o deploy com comando:
+
+```bash
+serverless deploy --stage prod --region us-east-1 --verbose
+```
+
 ### Suporte
 Para mais informações ou suporte, entre em contato com a equipe de desenvolvimento.
 
