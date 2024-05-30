@@ -11,9 +11,7 @@ const corpId = process.env.CORP_ID;
 
 async function obterConjuntosAnuncio(req, res, next) {
   const userId = req.user._id;
-  const { contaId, granularity, timeZoneIana, pageNo, pageSize } = req.body;
-  const timestampBegin = toTimestampBR(req.body.dataBeginTime);
-  const timestampEnd = toTimestampBR(req.body.dataEndTime);
+  const { contaId, granularity, timeZoneIana, pageNo, pageSize, dataBeginTime, dataEndTime } = req.body;
   const status = req.body?.status;
   const search = req.body?.search;
 
@@ -27,7 +25,7 @@ async function obterConjuntosAnuncio(req, res, next) {
   }
 
   try {
-    const response = await obterDadosCompletosConjuntosAnuncio(contaId, timestampBegin, timestampEnd, granularity, timeZoneIana, pageNo, pageSize, search, status);
+    const response = await obterDadosCompletosConjuntosAnuncio(contaId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize, search, status);
     res.json(response);
   } catch (error) {
     next(res)
@@ -52,10 +50,14 @@ async function obterDadosCompletosConjuntosAnuncio(accountId, dataBeginTime, dat
       "pageSize": pageSize
     };
     const metricasResultados = await obterMetricasConjuntoAnuncio(params);
-    console.log('Retorno Metricas', metricasResultados.length);
-    const dadosCompletos = ConjuntoAnuncios.adSets.map(ConjuntoAnuncios => {
-      const metricas = metricasResultados.find(m => m && m.campaignId === ConjuntoAnuncios.campaignId && m.unitId === ConjuntoAnuncios.unitId) || metricasPadrao;
-      return { ...ConjuntoAnuncios, ...metricas };
+    console.log('Metricas obtidas:', metricasResultados);
+    const dadosCompletos = ConjuntoAnuncios.adSets.map(anuncios => {
+      const metricas = metricasResultados.find(
+        m => m && m.campaignId === anuncios.campaignId &&
+         m.unitId === anuncios.unitId &&
+         m.unitName === anuncios.unitName
+      ) || metricasPadrao;
+      return { ...anuncios, ...metricas };
     });
     return {
       totalItems: ConjuntoAnuncios.total,
@@ -63,8 +65,6 @@ async function obterDadosCompletosConjuntosAnuncio(accountId, dataBeginTime, dat
       totalPages: Math.ceil(ConjuntoAnuncios.total / pageSize),
       data: dadosCompletos,
     };
-    await saveConjuntoAnuncios(dadosCompletos, pageNo);
-    return getAdSets(pageNo, pageSize);
   } catch (error) {
     console.error('Erro ao obter dados completos das ConjuntoAnuncios', error);
     throw error;
@@ -121,29 +121,8 @@ async function obterConjuntosAnuncioPorData(accountId, dataBeginTime, dataEndTim
   }
 }
 
-async function saveConjuntoAnuncios(conjuntoAnuncioValidas, pageNo) {
-  try {
-    const db = mongoose.connection;
-    const bulkOps = conjuntoAnuncioValidas.map(ad_set => ({
-      updateOne: {
-        filter: { unitId: ad_set.unitId }, 
-        update: { $set: { ...ad_set, pageNo: pageNo } },
-        upsert: true
-      }
-    }));
-
-    console.log('Atualizando/Inserindo conjuntoAnuncio na coleção ad_set_all...');
-    const result = await db.collection('ad_set_all').bulkWrite(bulkOps);
-    console.log(`Operação completada. Matched: ${result.matchedCount}, Upserted: ${result.upsertedCount}`);
-  } catch (error) {
-    console.error('Erro ao salvar conjuntoAnuncio:', error);
-    throw error;
-  }
-}
-
-
 async function obterMetricasConjuntoAnuncio(params) {
-  params.pageSize = 100;
+  console.log('params', params)
   try {
     const response = await axios.post(
       'https://developers.kwai.com/rest/n/mapi/report/dspUnitEffectQuery',
@@ -155,7 +134,6 @@ async function obterMetricasConjuntoAnuncio(params) {
         },
       }
     );
-    console.log("AAAAAAAAAAAAAAAAAA", response.data.data.total)
     // console.log('obterMetricasConjuntoAnuncio', response.data.data)
     if (response.data.status === 200 && response.data.data.total > 0) {
       return response.data.data.data;
@@ -410,6 +388,7 @@ async function duplicarConjuntoAnuncio(req, res, next) {
         await atualizarAccessToken();
         return duplicarConjuntoAnuncio(accountId, unitId, quantidade);
       } else {
+        console.log(response.data)
         throw new Error(`Erro ao duplicar conjunto de anúncio: ${response.data.message}`);
       }
     }

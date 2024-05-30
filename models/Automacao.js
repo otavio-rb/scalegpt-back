@@ -25,6 +25,10 @@ const automacaoSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  type: {
+    type: String,
+    required: true,
+  },
   valor: {
     type: Number,
     required: true,
@@ -84,6 +88,9 @@ automacaoSchema.statics.joiSchema = Joi.object({
     valor: Joi.number().required().messages({
       'number.base': 'O valor da ação é obrigatório.',
     }),
+  }),
+  type: Joi.string().required().messages({
+    'string.empty': 'O tipo de automação é obrigatório.',
   }),
 });
 

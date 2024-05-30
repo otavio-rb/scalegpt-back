@@ -1,5 +1,5 @@
 service: scalegpt-back-api
-frameworkVersion: "3"
+frameworkVersion: '3'
 
 provider:
   name: aws
@@ -16,20 +16,20 @@ provider:
     JWT_SECRET: 2139128312938123
     NODE_ENV: production
 
-plugins:
+# plugins: null
   # - serverless-webpack
-  - serverless-offline
-  - serverless-dotenv-plugin
+  # - serverless-offline
+  # - serverless-dotenv-plugin
 
 # package:
 #   individually: true 
-  
+
 functions:
   app:
     handler: index.handler
     timeout: 30 #seconds
     layers:
-    - arn:aws:lambda:us-east-1:756934032722:layer:node_modules:6
+      - arn:aws:lambda:us-east-1:756934032722:layer:node_modules:6
     events:
       - http:
           path: /
@@ -73,9 +73,9 @@ functions:
               - PUT
               - PATCH
               - DELETE
-
-custom:
-  dotenv:
-    path: ./.env
-  serverless-offline:
-    httpPort: 3000
+  # custom:
+  # dotenv:
+  #   path: ./.env
+  # serverless-offline:
+  #   httpPort: 3000
+Transform: AWS::Serverless-2016-10-31

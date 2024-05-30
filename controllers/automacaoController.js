@@ -61,7 +61,7 @@ async function criarAutomacao(req, res, next) {
     }
 
     const userId = req.user._id;
-    const { titulo, conta, campanhaId, evento, condicao, valor, acao } = req.body;
+    const { titulo, conta, campanhaId, evento, condicao, valor, acao, type } = req.body;
 
     const usuario = await Usuario.findById(userId);
     if (!usuario.contasVinculadas.includes(conta)) {
@@ -77,6 +77,7 @@ async function criarAutomacao(req, res, next) {
       valor,
       acao,
       usuario: userId,
+      type
     });
 
     await automacao.save();

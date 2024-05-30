@@ -183,7 +183,11 @@ async function duplicarCampanha(req, res) {
 
     // Verifica se dayBudget e budgetSchedule estão de acordo com o budgetType
     if (novaCampanha.budgetType === 2 && !novaCampanha.dayBudget) {
-      novaCampanha.dayBudget = 1000000; // Valor mínimo teórico para budget diário
+      novaCampanha.dayBudget = 100000000; // Valor mínimo teórico para budget diário
+    }
+
+    if (novaCampanha.dayBudget < 100000000) {
+      novaCampanha.dayBudget = 100000000;
     }
 
     novasCampanhas.push(novaCampanha);
@@ -212,6 +216,7 @@ async function duplicarCampanha(req, res) {
       await atualizarAccessToken();
       return duplicarCampanha(req, res);
     } else {
+      console.log(response.data);
       throw new Error(`Erro ao duplicar campanha: ${response.data.message}`);
     }
   } catch (error) {
@@ -239,9 +244,7 @@ async function atualizarAccessToken() {
 
 async function obterCampanhas(req, res, next) {
   const userId = req.user._id;
-  const { contaId, granularity, timeZoneIana, pageNo, pageSize } = req.body;
-  const timestampBegin = toTimestampBR(req.body.dataBeginTime);
-  const timestampEnd = toTimestampBR(req.body.dataEndTime);
+  const { contaId, granularity, timeZoneIana, pageNo, pageSize, dataBeginTime, dataEndTime } = req.body;
   const status = req.body?.status;
   const search = req.body?.search;
 
@@ -255,7 +258,7 @@ async function obterCampanhas(req, res, next) {
   }
 
   try {
-    const response = await obterDadosCompletosCampanhas(contaId, timestampBegin, timestampEnd, granularity, timeZoneIana, pageNo, pageSize, search, status);
+    const response = await obterDadosCompletosCampanhas(contaId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize, search, status);
     res.json(response);
   } catch (error) {
     next(error)
@@ -349,7 +352,7 @@ async function saveCampanhas(campanhasValidas) {
 
 
 async function obterMetricasCampanha(params) {
-  params.pageSize = 100;
+  console.log(params)
   try {
     const response = await axios.post(
       'https://developers.kwai.com/rest/n/mapi/report/dspCampaignEffectQuery',
@@ -363,7 +366,7 @@ async function obterMetricasCampanha(params) {
     );
 
     if (response.data.status === 200 && response.data.data.total > 0) {
-      return response;
+      return response.data.data.data;
     } else if (response.data.status === 401) {
       await atualizarAccessToken();
       return obterMetricasCampanha(params);
@@ -384,12 +387,12 @@ async function obterDadosCompletosCampanhas(accountId, dataBeginTime, dataEndTim
     const campanhas = await obterCampanhasPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize, search, status);
     console.log('campanhas obtidas:', campanhas.length);
     const params = {
+      "accountId": accountId,
       "adCategory": 1,
       "granularity": granularity,
       "dataBeginTime": dataBeginTime,
       "dataEndTime": dataEndTime,
       "timeZoneIana": timeZoneIana,
-      "adCategory": 1,
       "pageNo": pageNo,
       "pageSize": pageSize
     };
@@ -406,105 +409,10 @@ async function obterDadosCompletosCampanhas(accountId, dataBeginTime, dataEndTim
       totalPages: Math.ceil(campanhas.total / pageSize),
       data: dadosCompletos,
     };
-    await saveCampanhas(dadosCompletos);
-    return getCampaigns(pageNo, pageSize);
   } catch (error) {
     console.error('Erro ao obter dados completos das campanhas', error);
     throw error;
   }
-}
-
-async function campaignSearch(search, pageNo = 1, pageSize = 10, status = 1) {
-  try {
-    const db = mongoose.connection;
-    const collection = db.collection('campaign_all');
-
-    // Construa uma consulta básica sem usar índices de texto
-    // Utiliza uma expressão regular para fazer uma busca 'contém' no campo 'campaignName'
-    const query = {
-      campaignName: { $regex: search, $options: 'i' }, // '$options: 'i'' para busca case-insensitive
-      status: status // Assume que status é um campo numérico
-    };
-
-    const totalItems = await collection.countDocuments(query);
-    const skip = (pageNo - 1) * pageSize;
-    const campaigns = await collection.find(query)
-      .skip(skip)
-      .limit(pageSize)
-      .toArray();
-
-    return {
-      totalItems,
-      currentPage: pageNo,
-      totalPages: Math.ceil(totalItems / pageSize),
-      campaigns
-    };
-  } catch (error) {
-      console.log|(error)
-      throw error;
-  }
-}
-
-async function getCampaigns(pageNo = 1, pageSize = 10) {
-  try {
-    const db = mongoose.connection;
-    const collection = db.collection('campaign_all');
-    const totalItems = await collection.countDocuments();
-    const skip = (pageNo - 1) * pageSize;
-    const campaigns = await collection.find({})
-      .skip(skip)
-      .limit(pageSize)
-      .toArray();
-
-    return {
-      totalItems,
-      currentPage: pageNo,
-      totalPages: Math.ceil(totalItems / pageSize),
-      campaigns
-    };
-  } catch (error) {
-    console.error('Erro ao buscar campanhas:', error);
-    throw error;
-  }
-}
-
-function toTimestampBR(dateInput) {
-  let dateStr = dateInput;
-
-  // Verifica se dateInput é um número (timestamp), então converte para string de data
-  if (typeof dateInput === 'number') {
-    const date = new Date(dateInput);
-    // Converte a data para o formato "dd/mm/yyyy hh:mm:ss"
-    const day = `0${date.getDate()}`.slice(-2);
-    const month = `0${date.getMonth() + 1}`.slice(-2); // Janeiro é 0!
-    const year = date.getFullYear();
-    const hours = `0${date.getHours()}`.slice(-2);
-    const minutes = `0${date.getMinutes()}`.slice(-2);
-    const seconds = `0${date.getSeconds()}`.slice(-2);
-    dateStr = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-  }
-
-  // Assume que dateStr está agora no formato "dd/mm/yyyy hh:mm:ss"
-  const parts = dateStr.split(' ');
-  const dateParts = parts[0].split('/');
-  const timeParts = parts[1].split(':');
-
-  // Constrói um objeto Date
-  // Note que o mês é 0-indexado em JavaScript, então subtraímos 1
-  const date = new Date(Date.UTC(
-    parseInt(dateParts[2], 10),
-    parseInt(dateParts[1], 10) - 1,
-    parseInt(dateParts[0], 10),
-    parseInt(timeParts[0], 10),
-    parseInt(timeParts[1], 10),
-    parseInt(timeParts[2], 10)
-  ));
-
-  // Ajusta para o fuso horário UTC-3
-  const utc3Offset = 3 * 60 * 60 * 1000; // 3 horas em milissegundos
-  const timestamp = date.getTime() - utc3Offset;
-
-  return timestamp;
 }
 
 const metricasPadrao = {

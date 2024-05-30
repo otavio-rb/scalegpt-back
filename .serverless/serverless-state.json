@@ -184,7 +184,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/scalegpt-back-api/production/1716065777501-2024-05-18T20:56:17.501Z/scalegpt-back-api.zip"
+                "S3Key": "serverless/scalegpt-back-api/production/1717076009037-2024-05-30T13:33:29.037Z/scalegpt-back-api.zip"
               },
               "Handler": "index.handler",
               "Runtime": "nodejs20.x",
@@ -217,14 +217,14 @@
               "AppLogGroup"
             ]
           },
-          "AppLambdaVersioncemj37E3y25xHZ8HAi0Tz5wt0vwE8c8RNDKVZiYPVZ0": {
+          "AppLambdaVersion4AB9mts9Z5XhrRxYoBbFa5LdmW03D2pSZzyYJzWXCY": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "AppLambdaFunction"
               },
-              "CodeSha256": "jFGMw0HOORyPZkEyPzZB90WVXMgqNUIWFcdlf+1EbsY="
+              "CodeSha256": "/+SSQLqQz8uR8Id9FdKa4C3Aj/zYCLmB2Nb5e/XSN3g="
             }
           },
           "ApiGatewayRestApi": {
@@ -442,7 +442,7 @@
               "AppLambdaPermissionApiGateway"
             ]
           },
-          "ApiGatewayDeployment1716065775720": {
+          "ApiGatewayDeployment1717076007011": {
             "Type": "AWS::ApiGateway::Deployment",
             "Properties": {
               "RestApiId": {
@@ -507,7 +507,7 @@
           "AppLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "AppLambdaVersioncemj37E3y25xHZ8HAi0Tz5wt0vwE8c8RNDKVZiYPVZ0"
+              "Ref": "AppLambdaVersion4AB9mts9Z5XhrRxYoBbFa5LdmW03D2pSZzyYJzWXCY"
             },
             "Export": {
               "Name": "sls-scalegpt-back-api-production-AppLambdaFunctionQualifiedArn"
@@ -701,7 +701,7 @@
         "memory": 1024,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "AppLambdaVersioncemj37E3y25xHZ8HAi0Tz5wt0vwE8c8RNDKVZiYPVZ0"
+        "versionLogicalId": "AppLambdaVersion4AB9mts9Z5XhrRxYoBbFa5LdmW03D2pSZzyYJzWXCY"
       }
     },
     "configValidationMode": "warn",
@@ -722,7 +722,7 @@
     "artifact": "/home/lincoln/workspace/scalegpt-back/.serverless/scalegpt-back-api.zip"
   },
   "package": {
-    "artifactDirectoryName": "serverless/scalegpt-back-api/production/1716065777501-2024-05-18T20:56:17.501Z",
+    "artifactDirectoryName": "serverless/scalegpt-back-api/production/1717076009037-2024-05-30T13:33:29.037Z",
     "artifact": "scalegpt-back-api.zip"
   }
 }

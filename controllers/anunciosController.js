@@ -12,9 +12,7 @@ const corpId = process.env.CORP_ID;
 
 async function obterAnuncios(req, res, next) {
   const userId = req.user._id;
-  const { contaId, granularity, timeZoneIana, pageNo, pageSize } = req.body;
-  const timestampBegin = toTimestampBR(req.body.dataBeginTime);
-  const timestampEnd = toTimestampBR(req.body.dataEndTime);
+  const { contaId, granularity, timeZoneIana, pageNo, pageSize, dataBeginTime, dataEndTime } = req.body;
   const status = req.body?.status;
   const search = req.body?.search;
 
@@ -28,7 +26,7 @@ async function obterAnuncios(req, res, next) {
   }
 
   try {
-    const response = await obterDadosCompletosAnuncio(contaId, timestampBegin, timestampEnd, granularity, timeZoneIana, pageNo, pageSize, search, status);
+    const response = await obterDadosCompletosAnuncio(contaId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize, search, status);
     res.json(response);
   } catch (error) {
     next(res)
@@ -42,6 +40,7 @@ async function obterDadosCompletosAnuncio(accountId, dataBeginTime, dataEndTime,
     const anuncios = await obterAnuncioPorData(accountId, dataBeginTime, dataEndTime, granularity, timeZoneIana, pageNo, pageSize, search, status);
     console.log('anúncios obtidos:', anuncios);
     const params = {
+      "accountId": accountId,
       "adCategory": 1,
       "granularity": granularity,
       "dataBeginTime": dataBeginTime,
@@ -154,7 +153,6 @@ async function saveConjuntoAnuncios(conjuntoAnuncioValidas) {
 }
 
 async function obterMetricasAnuncio(params) {
-  params.pageSize = 100;
   try {
     const response = await axios.post(
       'https://developers.kwai.com/rest/n/mapi/report/dspCreativeEffectQuery',
@@ -168,7 +166,7 @@ async function obterMetricasAnuncio(params) {
     );
     // console.log('obterMetricasAnuncio', response.data.data)
     if (response.data.status === 200 && response.data.data.total > 0) {
-      return response;
+      return response.data.data.data;
     } else if (response.data.status === 401) {
       await atualizarAccessToken();
       return obterMetricasAnuncio(params);
